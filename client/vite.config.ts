@@ -13,6 +13,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // Yerel geliştirme (Local) için proxy ayarı. 
+      // Vercel'e yüklendiğinde (Production) Vercel bu proxy'yi değil, vercel.json'u kullanacak.
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
@@ -23,4 +25,9 @@ export default defineConfig({
       },
     },
   },
+  // Vercel deployment'ı için build ayarları
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  }
 })
