@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@studysprint/shared": "workspace:*",
     "html5-qrcode": "^2.3.8",
     "nanoid": "^5.0.9",
     "qrcode.react": "^4.2.0",
