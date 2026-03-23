@@ -1,0 +1,102 @@
+/** Ortak domain ve socket yükleri — PRD ile uyumlu */
+export type ParticipantStatus = 'waiting' | 'ready' | 'offline';
+export type RoomPhase = 'lobby' | 'countdown' | 'sprint' | 'debrief' | 'results';
+export type PublicParticipant = {
+    id: string;
+    displayName: string;
+    status: ParticipantStatus;
+    isAnonymous: boolean;
+    distractionCount: number;
+    completedTasks: number | null;
+    debriefSubmitted: boolean;
+};
+export type PublicRoomState = {
+    slug: string;
+    /** Oda başlığı (kurucunun verdiği ad) */
+    roomName: string;
+    /** Toplam kişi kapasitesi (kurucu dahil) */
+    maxParticipants: number;
+    phase: RoomPhase;
+    durationMinutes: number;
+    targetTasks: number;
+    hasPassword: boolean;
+    ownerId: string;
+    /** Kurucu: tüm çevrimiçi katılımcılar hazırsa true */
+    canOwnerStart: boolean;
+    countdownStep: number | null;
+    sprintEndsAt: number | null;
+    debriefDeadlineAt: number | null;
+    participants: PublicParticipant[];
+    serverMessage: string | null;
+};
+export type RoomCreatePayload = {
+    roomName: string;
+    durationMinutes: number;
+    targetTasks: number;
+    /** Toplam kişi sayısı (kurucu dahil), örn. 8 */
+    maxParticipants: number;
+    password?: string;
+    displayName: string;
+    isAnonymous: boolean;
+    clientId: string;
+};
+export type RoomJoinPayload = {
+    slug: string;
+    password?: string;
+    displayName: string;
+    isAnonymous: boolean;
+    clientId: string;
+};
+export type RoomPeekResponse = {
+    ok: false;
+    error: string;
+} | {
+    ok: true;
+    roomName: string;
+    hasPassword: boolean;
+    maxParticipants: number;
+    participantCount: number;
+};
+export type DebriefSubmitPayload = {
+    slug: string;
+    clientId: string;
+    completedTasks: number;
+};
+export type OwnerKickPayload = {
+    slug: string;
+    ownerClientId: string;
+    targetParticipantId: string;
+};
+export type OwnerExtendPayload = {
+    slug: string;
+    ownerClientId: string;
+    extraMinutes?: number;
+};
+export type SessionDistractionPayload = {
+    slug: string;
+    clientId: string;
+};
+export type RoomAckOk = {
+    ok: true;
+    slug: string;
+    invitePath: string;
+};
+export type RoomAckErr = {
+    ok: false;
+    error: string;
+};
+export type RoomJoinAck = RoomAckOk | RoomAckErr;
+export type ResultHighlight = {
+    participantId: string;
+    displayLabel: string;
+    completedTasks: number;
+    targetPercent: number;
+    isTop: boolean;
+};
+export type SessionResultsPayload = {
+    slug: string;
+    targetTasks: number;
+    averageCompleted: number;
+    highlights: ResultHighlight[];
+};
+//# sourceMappingURL=index.d.ts.map

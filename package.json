@@ -1,0 +1,23 @@
+{
+  "name": "studysprint",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "vite --host",
+    "build": "npm run build -w shared && npm run build -w client && npm run build -w server",
+    "db:generate": "npm run db:generate -w server",
+    "db:push": "npm run db:push -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prisma": "^7.5.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.5.0"
+  }
+}

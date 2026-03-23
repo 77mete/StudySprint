@@ -1,0 +1,3 @@
+Analiz ekranında kaç kere dikkat dağılmış o da analiz edilsin. herkes sadece kendi için olanı görsün. Ses kısmında sakin gürültü çok güzel fakat yumuşak ambient ve hafif doğa geliştirilebilir. daha soft, daha sakin ve daha rahatlatıcı olabilir. odaya katılım kodunu daha büyük şekilde gösterebilirsin çok küçük kalmış. Kişi odadan çıkartılınca hala çıkartıldığına dair bir mesaj yok, onu düzelt çıkartıldığına dair mesaj versin. Oda şifresi girilmeden veya yanlış girildiğinde katıl butonuna basıldığı bir hata mesajı vermeli. Qr kod okutmak için kamera açılmıyor hata veriyor onu da düzelt. Kişi tek kişilik de oda açabilsin  kendisi için.
+
+Şimdilik bunları düzenle ve sonuçtan beri haberdar et.
