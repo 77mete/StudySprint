@@ -1,4 +1,4 @@
-import type { RoomCreatePayload } from '@studysprint/shared'
+import type { RoomCreatePayload } from '../shared'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getOrCreateClientId } from '../lib/clientId'

@@ -1,4 +1,4 @@
-import type { PublicRoomState, SessionResultsPayload } from '@studysprint/shared'
+import type { PublicRoomState, SessionResultsPayload } from '../shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
