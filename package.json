@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "vite --host",
-    "build": "npm run build -w shared --if-present && vite build",
+    "build": "vite build",
     "db:generate": "npm run db:generate -w server",
     "db:push": "npm run db:push -w server"
   },
