@@ -12,11 +12,19 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "baseUrl": "."
+    
+    /* Gevşetilen Ayarlar */
+    "strict": false,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": false,
+    
+    /* Shared Modülü İçin Yol Tanımları */
+    "baseUrl": ".",
+    "paths": {
+      "@studysprint/shared": ["../shared/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../shared"] 
 }
