@@ -8,14 +8,31 @@ import { checkDatabase, getPrisma } from './db.js'
 import { RoomStore } from './roomStore.js'
 
 const PORT = Number(process.env.PORT) || 3001
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173'
+
+const parseClientOrigins = (): string[] => {
+  const raw = process.env.CLIENT_ORIGIN || 'http://localhost:5173'
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+const CLIENT_ORIGINS = parseClientOrigins()
+const corsOrigin =
+  CLIENT_ORIGINS.length === 0
+    ? 'http://localhost:5173'
+    : CLIENT_ORIGINS.length === 1
+      ? CLIENT_ORIGINS[0]
+      : CLIENT_ORIGINS
 
 const app = express()
+app.set('trust proxy', 1)
+
 const httpServer = createServer(app)
 
 const io = new Server(httpServer, {
   cors: {
-    origin: CLIENT_ORIGIN,
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
   },
 })
@@ -23,7 +40,7 @@ const io = new Server(httpServer, {
 app.use(express.json({ limit: '32kb' }))
 app.use(
   cors({
-    origin: CLIENT_ORIGIN,
+    origin: corsOrigin,
   }),
 )
 
@@ -146,5 +163,5 @@ io.on('connection', (socket) => {
 })
 
 httpServer.listen(PORT, () => {
-  console.log(`[server] http://localhost:${PORT} · CORS: ${CLIENT_ORIGIN}`)
+  console.log(`[server] http://localhost:${PORT} · CORS: ${CLIENT_ORIGINS.join(', ')}`)
 })

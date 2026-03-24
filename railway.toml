@@ -1,0 +1,8 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm run build:server"
+
+[deploy]
+startCommand = "npm run start -w @studysprint/server"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

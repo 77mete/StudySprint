@@ -23,8 +23,8 @@
     /* Shared Modülü İçin Yol Tanımları */
     "baseUrl": ".",
     "paths": {
-      "@studysprint/shared": ["../shared/*"]
+      "@studysprint/shared": ["./src/shared/src/index.ts"]
     }
   },
-  "include": ["src", "../shared"] 
+  "include": ["src"]
 }

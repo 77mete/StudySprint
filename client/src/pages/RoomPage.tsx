@@ -17,6 +17,7 @@ import type { FocusMode } from '../lib/focusAudio'
 import { setFocusMode } from '../lib/focusAudio'
 import { parseRoomSlugFromText } from '../lib/parseRoomUrl'
 import { playSessionEndChime } from '../lib/sound'
+import { apiUrl } from '../lib/apiBase'
 import { getSocket } from '../lib/socket'
 
 const joinKey = (slug: string) => `studysprint_joined_${slug}`
@@ -69,7 +70,7 @@ export const RoomPage = () => {
   useEffect(() => {
     if (joined) return
     let cancelled = false
-    void fetch(`/api/rooms/${slug}`)
+    void fetch(apiUrl(`/api/rooms/${slug}`))
       .then(async (res) => {
         if (cancelled) return
         if (!res.ok) {
@@ -114,7 +115,7 @@ export const RoomPage = () => {
   }, [peek])
 
   useEffect(() => {
-    void fetch(`/api/profile/${clientId}`)
+    void fetch(apiUrl(`/api/profile/${clientId}`))
       .then((r) => r.json())
       .then((d: { ok?: boolean; streakDays?: number; badges?: string[] }) => {
         if (d.ok) setProfile({ streak: d.streakDays ?? 0, badges: d.badges ?? [] })

@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // @studysprint/shared'i fiziksel yola bağlar
-      '@studysprint/shared': path.resolve(__dirname, '../shared')
+      '@studysprint/shared': path.resolve(__dirname, 'src/shared/src')
     }
   },
   server: {

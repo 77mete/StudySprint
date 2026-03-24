@@ -1,9 +1,16 @@
 {
   "name": "studysprint",
   "private": true,
+  "workspaces": [
+    "client",
+    "client/src/shared",
+    "server"
+  ],
   "scripts": {
-    "dev": "npm run dev -w client",
-    "build": "npm run build -w client"
+    "dev": "npm run dev -w @studysprint/client",
+    "build": "cd server && npm install && npm run build",
+    "build:server": "npm run build -w @studysprint/shared && npm run build -w @studysprint/server",
+    "start:server": "npm run start -w @studysprint/server"
   },
   "engines": {
     "node": "20.x"

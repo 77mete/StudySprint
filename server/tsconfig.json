@@ -11,10 +11,7 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
-    "paths": {
-      "@studysprint/shared": ["../shared/src/index.ts"]
-    }
+    "sourceMap": true
   },
   "include": ["src/**/*.ts"]
 }
