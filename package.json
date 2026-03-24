@@ -13,6 +13,6 @@
     "start:server": "npm run start -w @studysprint/server"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20.0.0"
   }
 }
