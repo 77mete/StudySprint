@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @studysprint/client",
-    "build": "cd server && npm install && npm run build",
+    "build": "npm run build -w @studysprint/client",
     "build:server": "npm run build -w @studysprint/shared && npm run build -w @studysprint/server",
     "start:server": "npm run start -w @studysprint/server"
   },
