@@ -1,4 +1,4 @@
-import type { PublicRoomState, SessionResultsPayload } from '../shared'
+import type { PublicRoomState, RoomPeekResponse, SessionResultsPayload } from '../shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -70,41 +70,38 @@ export const RoomPage = () => {
   useEffect(() => {
     if (joined) return
     let cancelled = false
-    void fetch(apiUrl(`/api/rooms/${slug}`))
-      .then(async (res) => {
-        if (cancelled) return
-        if (!res.ok) {
-          setPeekError(true)
-          setPeekLoading(false)
-          return
-        }
-        const d = (await res.json()) as {
-          ok: boolean
-          roomName?: string
-          hasPassword?: boolean
-          maxParticipants?: number
-          participantCount?: number
-        }
-        if (d.ok && d.roomName !== undefined) {
-          setPeek({
-            roomName: d.roomName,
-            hasPassword: Boolean(d.hasPassword),
-            maxParticipants: d.maxParticipants ?? 8,
-            participantCount: d.participantCount ?? 0,
-          })
-        } else {
-          setPeekError(true)
-        }
-        setPeekLoading(false)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPeekError(true)
-          setPeekLoading(false)
-        }
-      })
+    setPeek(null)
+    setPeekError(false)
+    setPeekLoading(true)
+
+    const socket = getSocket()
+
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      setPeekError(true)
+      setPeekLoading(false)
+    }, 5000)
+
+    socket.emit('room:peek', { slug }, (d: RoomPeekResponse) => {
+      if (cancelled) return
+      window.clearTimeout(timeoutId)
+
+      if (d.ok) {
+        setPeek({
+          roomName: d.roomName,
+          hasPassword: Boolean(d.hasPassword),
+          maxParticipants: d.maxParticipants,
+          participantCount: d.participantCount,
+        })
+      } else {
+        setPeekError(true)
+      }
+      setPeekLoading(false)
+    })
+
     return () => {
       cancelled = true
+      window.clearTimeout(timeoutId)
     }
   }, [slug, joined])
 

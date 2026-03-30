@@ -98,6 +98,25 @@ io.on('connection', (socket) => {
     if (typeof ack === 'function') ack(result)
   })
 
+  socket.on(
+    'room:peek',
+    (payload: { slug: string }, ack?: (res: any) => void) => {
+      const slug = payload.slug.trim().toLowerCase()
+      const info = store.peekRoom(slug)
+      if (!info) {
+        ack?.({ ok: false as const, error: 'Oda bulunamadı.' })
+        return
+      }
+      ack?.({
+        ok: true as const,
+        roomName: info.roomName,
+        hasPassword: info.hasPassword,
+        maxParticipants: info.maxParticipants,
+        participantCount: info.participantCount,
+      })
+    },
+  )
+
   socket.on('room:leave', () => {
     store.leaveRoom(io, socket)
   })

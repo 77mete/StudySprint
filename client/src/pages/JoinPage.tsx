@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { QrScanPanel } from '../components/QrScanPanel'
-import { apiUrl } from '../lib/apiBase'
 import { parseRoomSlugFromText } from '../lib/parseRoomUrl'
 
 export const JoinPage = () => {
@@ -19,17 +18,7 @@ export const JoinPage = () => {
       }
       setBusy(true)
       setError(null)
-      try {
-        const res = await fetch(apiUrl(`/api/rooms/${slug}`))
-        if (!res.ok) {
-          setError('Bu kodla bir oda bulunamadı.')
-          setBusy(false)
-          return
-        }
-        navigate(`/room/${slug}`)
-      } catch {
-        setError('Sunucuya ulaşılamadı.')
-      }
+      navigate(`/room/${slug}`)
       setBusy(false)
     },
     [navigate],
