@@ -144,7 +144,10 @@ export const RoomPage = () => {
       sessionStorage.removeItem(joinKey(slug))
       setJoined(false)
       setBanner(payload?.message ?? 'Odadan çıkartıldınız.')
-      navigate('/', { replace: true })
+      navigate('/', {
+        replace: true,
+        state: { bannerMessage: payload?.message ?? 'Odadan çıkartıldınız.' },
+      })
     }
 
     socket.on('room:state', onState)
@@ -384,6 +387,7 @@ export const RoomPage = () => {
   }
 
   const selfParticipant = room.participants.find((p) => p.id === clientId)
+  const selfDistractionCount = selfParticipant?.distractionCount ?? 0
   const debriefWaitingOthers =
     room.phase === 'debrief' &&
     Boolean(selfParticipant?.debriefSubmitted) &&
@@ -408,7 +412,8 @@ export const RoomPage = () => {
               <p className="text-xs uppercase tracking-widest text-brand-400">StudySprint</p>
               <h1 className="text-xl font-semibold text-white sm:text-2xl">{room.roomName}</h1>
               <p className="text-xs text-slate-500">
-                Kod: <span className="font-mono text-slate-400">{slug}</span> ·{' '}
+                Kod:{' '}
+                <span className="font-mono text-base text-slate-200">{slug}</span> ·{' '}
                 {room.participants.length}/{room.maxParticipants} kişi
               </p>
               {profile && (
@@ -532,6 +537,10 @@ export const RoomPage = () => {
               Grup ortalaması: <strong className="text-white">{results.averageCompleted}</strong> ·
               Hedef: {results.targetTasks}
             </p>
+            <p className="text-sm text-slate-400">
+              Dikkat dağıtıcı işaretlerin:{' '}
+              <strong className="text-white">{selfDistractionCount}</strong>
+            </p>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
@@ -594,14 +603,30 @@ const LobbySection = ({
 }) => {
   const self = room.participants.find((p) => p.id === clientId)
   const ready = self?.status === 'ready'
+  const pendingApproval = room.requiresApproval && self?.status === 'pending'
   const socket = getSocket()
+
+  const pendingParticipants =
+    room.requiresApproval && isOwner
+      ? room.participants.filter((p) => p.id !== room.ownerId && p.status === 'pending')
+      : []
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
       <h2 className="text-lg font-semibold text-white">Bekleme odası</h2>
       <p className="text-sm text-slate-400">
-        Katılımcılar &quot;Hazırım&quot; dediğinde burada görünür. Herkes hazır olduğunda kurucu{' '}
-        <strong className="text-slate-200">Başlat</strong> ile oturumu başlatır.
+        {room.requiresApproval ? (
+          <>
+            Katılımcılar önce kurucu onayı bekler. Onaydan sonra &quot;Hazırım&quot; diyerek hazır olur.
+            Herkes hazır olduğunda kurucu <strong className="text-slate-200">Başlat</strong> ile oturumu
+            başlatır.
+          </>
+        ) : (
+          <>
+            Katılımcılar &quot;Hazırım&quot; dediğinde burada görünür. Herkes hazır olduğunda kurucu{' '}
+            <strong className="text-slate-200">Başlat</strong> ile oturumu başlatır.
+          </>
+        )}
       </p>
       <ul className="divide-y divide-slate-800 rounded-xl border border-slate-800">
         {room.participants.map((p) => (
@@ -616,6 +641,8 @@ const LobbySection = ({
               className={
                 p.status === 'ready'
                   ? 'text-emerald-400'
+                  : p.status === 'pending'
+                    ? 'text-amber-300'
                   : p.status === 'offline'
                     ? 'text-slate-500'
                     : 'text-amber-300'
@@ -625,6 +652,8 @@ const LobbySection = ({
                 ? '—'
                 : p.status === 'ready'
                   ? 'Hazır'
+                  : p.status === 'pending'
+                    ? 'Onay bekliyor'
                   : p.status === 'offline'
                     ? 'Çevrimdışı'
                     : 'Bekleniyor'}
@@ -632,18 +661,75 @@ const LobbySection = ({
           </li>
         ))}
       </ul>
+
+      {isOwner && room.requiresApproval && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+          <p className="text-sm font-semibold text-white">Katılımcı izinleri</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Onay verdiklerin oturumda Hazırım diyebilir.
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={pendingParticipants.length === 0}
+              onClick={() =>
+                socket.emit('owner:approveAll', {
+                  slug,
+                  ownerClientId: clientId,
+                })
+              }
+            >
+              Tümünü onayla
+            </button>
+          </div>
+
+          <ul className="mt-3 space-y-1">
+            {pendingParticipants.length === 0 ? (
+              <li className="text-sm text-slate-400">Onay bekleyen yok.</li>
+            ) : (
+              pendingParticipants.map((p) => (
+                <li key={p.id} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">{p.displayName}</span>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+                    onClick={() =>
+                      socket.emit('owner:approve', {
+                        slug,
+                        ownerClientId: clientId,
+                        targetParticipantId: p.id,
+                      })
+                    }
+                  >
+                    Onayla
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         {!isOwner && (
           <button
             type="button"
-            onClick={() => onReady(!ready)}
+            disabled={pendingApproval}
+            onClick={() => {
+              if (pendingApproval) return
+              onReady(!ready)
+            }}
             className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-              ready
-                ? 'border border-slate-600 text-slate-200'
-                : 'bg-brand-600 text-white hover:bg-brand-500'
-            }`}
+              pendingApproval
+                ? 'border border-slate-700 bg-slate-800 text-slate-400'
+                : ready
+                  ? 'border border-slate-600 text-slate-200'
+                  : 'bg-brand-600 text-white hover:bg-brand-500'
+            } disabled:opacity-90 disabled:cursor-not-allowed`}
           >
-            {ready ? 'Hazır değilim' : 'Hazırım'}
+            {pendingApproval ? 'Onay bekleniyor' : ready ? 'Hazır değilim' : 'Hazırım'}
           </button>
         )}
         {isOwner && (
@@ -771,9 +857,10 @@ const SprintSection = ({
             {(
               [
                 ['off', 'Kapalı'],
-                ['white', 'Sakin gürültü'],
-                ['lofi', 'Yumuşak ambient'],
-                ['nature', 'Hafif doğa'],
+                ['mozart40', 'Mozart 40. Senfoni'],
+                ['odak', 'Odaklanma ve Konsantrasyon Arttırıcı'],
+                ['gnossienne1', 'Gnossienne No.1'],
+                ['beyazGurultu', 'Beyaz Gürültü'],
               ] as const
             ).map(([mode, label]) => (
               <button

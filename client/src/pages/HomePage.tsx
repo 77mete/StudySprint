@@ -1,11 +1,12 @@
 import type { RoomCreatePayload } from '../shared'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { getOrCreateClientId } from '../lib/clientId'
 import { getSocket } from '../lib/socket'
 
 export const HomePage = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [roomName, setRoomName] = useState('Çalışma odası')
   const [maxParticipants, setMaxParticipants] = useState(8)
   const [durationMinutes, setDurationMinutes] = useState(25)
@@ -13,8 +14,11 @@ export const HomePage = () => {
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [isAnonymous, setIsAnonymous] = useState(false)
+  const [requiresApproval, setRequiresApproval] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const bannerMessage = (location.state as { bannerMessage?: string } | null)?.bannerMessage ?? null
 
   const handleSubmit = () => {
     if (!roomName.trim()) {
@@ -37,6 +41,7 @@ export const HomePage = () => {
       password: password.trim() || undefined,
       displayName: isAnonymous ? '' : displayName.trim(),
       isAnonymous,
+      requiresApproval,
       clientId: getOrCreateClientId(),
     }
     socket.emit('room:create', payload, (ack: { ok: boolean; slug?: string; error?: string }) => {
@@ -53,6 +58,11 @@ export const HomePage = () => {
   return (
     <div className="min-h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-14 sm:px-6">
       <div className="mx-auto flex max-w-lg flex-col gap-8">
+        {bannerMessage && (
+          <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-center text-sm text-slate-200">
+            {bannerMessage}
+          </div>
+        )}
         <header className="text-center">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-brand-400">StudySprint</p>
           <h1 className="mt-2 text-3xl font-semibold text-white">Yeni oda oluştur</h1>
@@ -88,7 +98,7 @@ export const HomePage = () => {
               </span>
               <input
                 type="number"
-                min={2}
+                min={1}
                 max={100}
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500/40 focus:ring-2"
                 value={maxParticipants}
@@ -104,7 +114,7 @@ export const HomePage = () => {
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500/40 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Örn. Ayşe"
+                placeholder="Adınız (örn. Ayşe)"
                 autoComplete="nickname"
                 disabled={isAnonymous}
               />
@@ -121,6 +131,16 @@ export const HomePage = () => {
                 className="size-4 rounded border-slate-600"
               />
               Anonim katıl (isim gizli, benzersiz takma ad atanır)
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                checked={requiresApproval}
+                onChange={(e) => setRequiresApproval(e.target.checked)}
+                className="size-4 rounded border-slate-600"
+              />
+              Katılımcılar için kurucu onayı (bekleme odası)
             </label>
 
             <div className="grid gap-4 sm:grid-cols-2">

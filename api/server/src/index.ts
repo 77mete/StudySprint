@@ -1,8 +1,10 @@
 import './env.js'
 import cors from 'cors'
 import express from 'express'
+import path from 'path'
 import rateLimit from 'express-rate-limit'
 import { createServer } from 'node:http'
+import { fileURLToPath } from 'node:url'
 import { Server } from 'socket.io'
 import { checkDatabase, getPrisma } from './db.js'
 import { RoomStore } from './roomStore.js'
@@ -35,6 +37,10 @@ const apiLimiter = rateLimit({
 })
 
 app.use('/api', apiLimiter)
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const musicDir = path.resolve(__dirname, '../../../music')
+app.use('/music', express.static(musicDir))
 
 const startedAt = Date.now()
 
@@ -146,6 +152,14 @@ io.on('connection', (socket) => {
 
   socket.on('owner:kick', (payload) => {
     store.ownerKick(io, payload)
+  })
+
+  socket.on('owner:approve', (payload) => {
+    store.ownerApprove(io, payload)
+  })
+
+  socket.on('owner:approveAll', (payload) => {
+    store.ownerApproveAll(io, payload)
   })
 
   socket.on(

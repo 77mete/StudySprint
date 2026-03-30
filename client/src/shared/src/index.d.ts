@@ -1,5 +1,5 @@
 /** Ortak domain ve socket yükleri — PRD ile uyumlu */
-export type ParticipantStatus = 'waiting' | 'ready' | 'offline';
+export type ParticipantStatus = 'waiting' | 'ready' | 'pending' | 'offline';
 export type RoomPhase = 'lobby' | 'countdown' | 'sprint' | 'debrief' | 'results';
 export type PublicParticipant = {
     id: string;
@@ -16,6 +16,7 @@ export type PublicRoomState = {
     roomName: string;
     /** Toplam kişi kapasitesi (kurucu dahil) */
     maxParticipants: number;
+    requiresApproval: boolean;
     phase: RoomPhase;
     durationMinutes: number;
     targetTasks: number;
@@ -38,6 +39,7 @@ export type RoomCreatePayload = {
     password?: string;
     displayName: string;
     isAnonymous: boolean;
+    requiresApproval: boolean;
     clientId: string;
 };
 export type RoomJoinPayload = {
@@ -66,6 +68,15 @@ export type OwnerKickPayload = {
     slug: string;
     ownerClientId: string;
     targetParticipantId: string;
+};
+export type OwnerApprovePayload = {
+    slug: string;
+    ownerClientId: string;
+    targetParticipantId: string;
+};
+export type OwnerApproveAllPayload = {
+    slug: string;
+    ownerClientId: string;
 };
 export type OwnerExtendPayload = {
     slug: string;

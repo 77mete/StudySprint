@@ -3,6 +3,8 @@ import { customAlphabet } from 'nanoid'
 import type { Server, Socket } from 'socket.io'
 import type {
   OwnerExtendPayload,
+  OwnerApproveAllPayload,
+  OwnerApprovePayload,
   OwnerKickPayload,
   ParticipantStatus,
   PublicParticipant,
@@ -22,7 +24,7 @@ const EXTEND_MINUTES_DEFAULT = 5
 
 const clampDuration = (n: number) => Math.min(240, Math.max(5, Math.round(Number(n) || 25)))
 const clampTarget = (n: number) => Math.min(1000, Math.max(1, Math.round(Number(n) || 10)))
-const clampCapacity = (n: number) => Math.min(100, Math.max(2, Math.round(Number(n) || 8)))
+const clampCapacity = (n: number) => Math.min(100, Math.max(1, Math.round(Number(n) || 8)))
 
 const hashPassword = (slug: string, plain: string) =>
   createHash('sha256').update(`${slug}:${plain}`).digest('hex')
@@ -33,6 +35,7 @@ type InternalParticipant = {
   displayName: string
   isAnonymous: boolean
   status: ParticipantStatus
+  approvedForRoom: boolean
   distractionCount: number
   debriefSubmitted: boolean
   completedTasks: number | null
@@ -44,6 +47,7 @@ type InternalRoom = {
   maxParticipants: number
   ownerId: string
   passwordHash: string | null
+  requiresApproval: boolean
   durationMinutes: number
   targetTasks: number
   phase: RoomPhase
@@ -63,7 +67,7 @@ const computeCanOwnerStart = (room: InternalRoom): boolean => {
   const nonOwners = [...room.participants.values()].filter(
     (p) => p.id !== room.ownerId && p.socketId !== null,
   )
-  if (nonOwners.length === 0) return false
+  if (nonOwners.length === 0) return true
   return nonOwners.every((p) => p.status === 'ready')
 }
 
@@ -81,6 +85,7 @@ const serialize = (room: InternalRoom): PublicRoomState => ({
   slug: room.slug,
   roomName: room.roomName,
   maxParticipants: room.maxParticipants,
+  requiresApproval: room.requiresApproval,
   phase: room.phase,
   durationMinutes: room.durationMinutes,
   targetTasks: room.targetTasks,
@@ -305,6 +310,7 @@ export class RoomStore {
       displayName: ownerDisplay,
       isAnonymous: payload.isAnonymous,
       status: 'waiting',
+      approvedForRoom: true,
       distractionCount: 0,
       debriefSubmitted: false,
       completedTasks: null,
@@ -316,6 +322,7 @@ export class RoomStore {
       maxParticipants,
       ownerId: owner.id,
       passwordHash,
+      requiresApproval: payload.requiresApproval,
       durationMinutes,
       targetTasks,
       phase: 'lobby',
@@ -372,10 +379,18 @@ export class RoomStore {
         existing.isAnonymous = false
       }
       if (room.phase === 'lobby') {
-        existing.status = 'waiting'
+        if (existing.approvedForRoom) {
+          existing.status = 'waiting'
+        } else {
+          existing.status = room.requiresApproval ? 'pending' : 'waiting'
+        }
       }
       if (existing.status === 'offline') {
-        existing.status = 'waiting'
+        if (room.requiresApproval && !existing.approvedForRoom) {
+          existing.status = 'pending'
+        } else {
+          existing.status = 'waiting'
+        }
       }
     } else {
       if (room.phase !== 'lobby') {
@@ -398,7 +413,8 @@ export class RoomStore {
         socketId: socket.id,
         displayName,
         isAnonymous: payload.isAnonymous,
-        status: 'waiting',
+        status: room.requiresApproval && payload.clientId !== room.ownerId ? 'pending' : 'waiting',
+        approvedForRoom: room.requiresApproval && payload.clientId !== room.ownerId ? false : true,
         distractionCount: 0,
         debriefSubmitted: false,
         completedTasks: null,
@@ -439,8 +455,47 @@ export class RoomStore {
     if (clientId === room.ownerId) return
     const p = room.participants.get(clientId)
     if (!p || p.socketId === null) return
+    if (room.requiresApproval && p.status === 'pending') return
     p.status = ready ? 'ready' : 'waiting'
     broadcast(io, room)
+  }
+
+  private ownerApproveOne(io: Server, room: InternalRoom, targetParticipantId: string) {
+    const target = room.participants.get(targetParticipantId)
+    if (!target) return
+    if (target.id === room.ownerId) return
+    target.approvedForRoom = true
+    if (room.phase === 'lobby' && target.socketId) {
+      if (target.status === 'pending') target.status = 'waiting'
+    }
+    broadcast(io, room)
+  }
+
+  private approveAllInternal(io: Server, room: InternalRoom) {
+    let changed = false
+    for (const p of room.participants.values()) {
+      if (p.id === room.ownerId) continue
+      if (!p.approvedForRoom) {
+        p.approvedForRoom = true
+        if (room.phase === 'lobby' && p.socketId && p.status === 'pending') {
+          p.status = 'waiting'
+        }
+        changed = true
+      }
+    }
+    if (changed) broadcast(io, room)
+  }
+
+  ownerApprove(io: Server, payload: OwnerApprovePayload) {
+    const room = this.rooms.get(payload.slug)
+    if (!room || room.ownerId !== payload.ownerClientId || room.phase !== 'lobby') return
+    this.ownerApproveOne(io, room, payload.targetParticipantId)
+  }
+
+  ownerApproveAll(io: Server, payload: OwnerApproveAllPayload) {
+    const room = this.rooms.get(payload.slug)
+    if (!room || room.ownerId !== payload.ownerClientId || room.phase !== 'lobby') return
+    this.approveAllInternal(io, room)
   }
 
   ownerStart(io: Server, slug: string, ownerClientId: string) {
@@ -550,9 +605,21 @@ export class RoomStore {
       socket.emit('room:error', { message: 'Bu odada kayıtlı değilsiniz — tekrar katılın.' })
       return
     }
+    if (room.requiresApproval && !p.approvedForRoom && room.phase !== 'lobby') {
+      socket.emit('room:kicked', {
+        message: 'Oturum başlamadan önce onay almadan katılamazsın.',
+      })
+      room.participants.delete(clientId)
+      socket.disconnect(true)
+      return
+    }
     p.socketId = socket.id
     if (p.status === 'offline') {
-      p.status = 'waiting'
+      if (room.requiresApproval && !p.approvedForRoom) {
+        p.status = 'pending'
+      } else {
+        p.status = 'waiting'
+      }
     }
     void socket.join(slug)
     broadcast(io, room)

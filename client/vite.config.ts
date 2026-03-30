@@ -23,6 +23,10 @@ export default defineConfig({
         target: 'http://localhost:3001',
         ws: true,
       },
+      '/music': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   // Vercel deployment'ı için build ayarları
