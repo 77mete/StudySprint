@@ -29,7 +29,7 @@ type FocusSetResult = {
 let audio: HTMLAudioElement | null = null
 let availableTracksPromise: Promise<string[]> | null = null
 
-const stop = async () => {
+const stop = () => {
   if (audio) {
     try {
       audio.pause()
@@ -76,7 +76,7 @@ const resolveTrackFileName = async (mode: Exclude<FocusMode, 'off'>): Promise<st
   return null
 }
 
-const playFileFocus = async (url: string): Promise<boolean> => {
+const playFileFocus = (url: string): Promise<{ ok: boolean; reason?: string }> => {
   const a = new Audio()
   a.loop = true
   a.preload = 'auto'
@@ -88,31 +88,41 @@ const playFileFocus = async (url: string): Promise<boolean> => {
   try {
     a.currentTime = 0
     const p = a.play()
-    if (p && typeof (p as Promise<void>).catch === 'function') {
-      await p
+    if (p && typeof (p as Promise<void>).then === 'function') {
+      return (p as Promise<void>)
+        .then(() => ({ ok: true }))
+        .catch((err: unknown) => {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : 'Bilinmeyen oynatma hatasi'
+          return { ok: false, reason: msg }
+        })
     }
-    return true
+    return Promise.resolve({ ok: true })
   } catch {
-    return false
+    return Promise.resolve({ ok: false, reason: 'play() cagrisinda hata olustu' })
   }
 }
 
 const tryPlayCandidates = async (mode: Exclude<FocusMode, 'off'>) => {
   const candidates = TRACK_FILE_CANDIDATES[mode]
   for (const fileName of candidates) {
-    const ok = await playFileFocus(apiUrl(`/music/${encodeURIComponent(fileName)}`))
-    if (ok) return true
-    await stop()
+    const result = await playFileFocus(apiUrl(`/music/${encodeURIComponent(fileName)}`))
+    if (result.ok) return { ok: true as const }
+    stop()
   }
-  return false
+  return { ok: false as const, reason: 'Aday dosyalardan hicbiri acilamadi.' }
 }
 
 export const setFocusMode = async (mode: FocusMode): Promise<FocusSetResult> => {
-  await stop()
+  stop()
   if (mode === 'off') return { ok: true, source: 'off' }
 
   const directPlay = await tryPlayCandidates(mode)
-  if (directPlay) return { ok: true, source: 'file' }
+  if (directPlay.ok) return { ok: true, source: 'file' }
 
   const fileName = await resolveTrackFileName(mode)
   if (!fileName) {
@@ -124,12 +134,19 @@ export const setFocusMode = async (mode: FocusMode): Promise<FocusSetResult> => 
   }
 
   const url = apiUrl(`/music/${encodeURIComponent(fileName)}`)
-  const fileOk = await playFileFocus(url)
-  if (fileOk) return { ok: true, source: 'file' }
+  const fileResult = await playFileFocus(url)
+  if (fileResult.ok) return { ok: true, source: 'file' }
+
+  const isHttpsPage =
+    typeof window !== 'undefined' && window.location.protocol.toLowerCase() === 'https:'
+  const backend = apiUrl('/music')
+  const isMixedContent = isHttpsPage && backend.startsWith('http://')
 
   return {
     ok: false,
     source: 'file',
-    message: 'Ses dosyasi acilamadi. Dosya yolu veya tarayici ses iznini kontrol edin.',
+    message: isMixedContent
+      ? 'HTTPS sayfada HTTP muzik kaynagi engellenir. VITE_BACKEND_URL adresini HTTPS yapin.'
+      : `Ses dosyasi acilamadi. Oynatma nedeni: ${fileResult.reason ?? directPlay.reason ?? 'bilinmiyor'}`,
   }
 }
