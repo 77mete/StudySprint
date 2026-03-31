@@ -1,4 +1,4 @@
-import { Html5QrcodeScanner } from 'html5-qrcode'
+import { Html5Qrcode } from 'html5-qrcode'
 import { useEffect, useRef, useState } from 'react'
 
 type Props = {
@@ -7,80 +7,113 @@ type Props = {
 }
 
 export const QrScanPanel = ({ elementId, onDecoded }: Props) => {
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null)
+  const scannerRef = useRef<Html5Qrcode | null>(null)
   const onDecodedRef = useRef(onDecoded)
-  const [hint, setHint] = useState('Tarama yapılıyor…')
+  const [scanning, setScanning] = useState(false)
+  const [hint, setHint] = useState('QR okumayi baslatin.')
 
   useEffect(() => {
     onDecodedRef.current = onDecoded
   }, [onDecoded])
 
+  const handleStartScan = async () => {
+    if (scanning) return
+    try {
+      const scanner = new Html5Qrcode(elementId, false)
+      scannerRef.current = scanner
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 12, qrbox: { width: 230, height: 230 }, aspectRatio: 1 },
+        async (decodedText) => {
+          setHint('Kod algilandi.')
+          onDecodedRef.current(decodedText)
+          if (scannerRef.current) {
+            try {
+              await scannerRef.current.stop()
+              scannerRef.current.clear()
+            } catch {
+              // yoksay
+            }
+            scannerRef.current = null
+          }
+          setScanning(false)
+        },
+        () => {
+          setHint('QR kod bekleniyor...')
+        },
+      )
+      setScanning(true)
+      setHint('Kamera acildi. QR kodu kadraja getirin.')
+    } catch {
+      setHint('Kamera baslatilamadi. Tarayici iznini ve HTTPS baglantisini kontrol edin.')
+      setScanning(false)
+    }
+  }
+
+  const handleStopScan = async () => {
+    if (!scannerRef.current) return
+    try {
+      await scannerRef.current.stop()
+      scannerRef.current.clear()
+    } catch {
+      // yoksay
+    }
+    scannerRef.current = null
+    setScanning(false)
+    setHint('Tarama durduruldu.')
+  }
+
   useEffect(() => {
-    const tr = (s: string) =>
-      s
-        .replace('Request Camera Permissions', 'Kamera izni iste')
-        .replace('Request Permission', 'Izin iste')
-        .replace('Start Scanning', 'Taramayi baslat')
-        .replace('Stop Scanning', 'Taramayi durdur')
-        .replace('Stop Camera', 'Kamerayi durdur')
-        .replace('Scan an Image File', 'Resim dosyasindan tara')
-        .replace('Choose Image', 'Resim sec')
-        .replace('No camera found', 'Kamera bulunamadi')
-        .replace('Camera streaming has started', 'Kamera acildi')
-
-    const applyTurkish = () => {
-      const root = document.getElementById(elementId)
-      if (!root) return
-      const nodes = root.querySelectorAll('button, span, label, a, option, div')
-      nodes.forEach((n) => {
-        if (!n.textContent) return
-        const next = tr(n.textContent)
-        if (next !== n.textContent) n.textContent = next
-      })
-    }
-
-    const scanner = new Html5QrcodeScanner(
-      elementId,
-      // Daha hızlı tarama için fps ve kutu boyutu optimize edildi.
-      { fps: 16, qrbox: { width: 240, height: 240 }, aspectRatio: 1 },
-      false,
-    )
-    scanner.render(
-      (decoded) => {
-        setHint('Kod algılandı!')
-        onDecodedRef.current(decoded)
-        void scanner.clear()
-      },
-      () => {
-        setHint('Tarama yapılıyor…')
-      },
-    )
-    const localizeTimer = window.setInterval(applyTurkish, 500)
-    scannerRef.current = scanner
     return () => {
-      window.clearInterval(localizeTimer)
-      void scanner.clear().catch(() => {})
-      scannerRef.current = null
+      if (scannerRef.current) {
+        void scannerRef.current
+          .stop()
+          .then(() => {
+            scannerRef.current?.clear()
+            scannerRef.current = null
+          })
+          .catch(() => {
+            scannerRef.current = null
+          })
+      }
     }
-  }, [elementId])
+  }, [])
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
         <span
-          className="inline-flex size-5 items-center justify-center rounded-full bg-brand-500/20 text-brand-300"
+          className="inline-flex size-5 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-300"
           aria-hidden="true"
         >
-          QR
+          ◉
         </span>
-        Kamera ile kod okut
+        QR okuyucu
       </div>
-      <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/70 p-4 shadow-lg">
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-brand-400/60 bg-brand-400/5"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-cyan-300/60 bg-cyan-300/5"
           aria-hidden="true"
         />
-        <div id={elementId} className="mx-auto w-full overflow-hidden rounded-xl" />
+        <div id={elementId} className="mx-auto min-h-56 w-full overflow-hidden rounded-xl bg-slate-950/60" />
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => void handleStartScan()}
+          disabled={scanning}
+          className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+        >
+          Taramayi baslat
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleStopScan()}
+          disabled={!scanning}
+          className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700 disabled:opacity-50"
+        >
+          Taramayi durdur
+        </button>
       </div>
       <p className="text-center text-xs text-slate-400" aria-live="polite">
         {hint}

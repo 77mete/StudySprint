@@ -1,6 +1,7 @@
 import './env.js'
 import cors from 'cors'
 import express from 'express'
+import { existsSync } from 'node:fs'
 import { promises as fs } from 'node:fs'
 import path from 'path'
 import rateLimit from 'express-rate-limit'
@@ -57,7 +58,9 @@ const apiLimiter = rateLimit({
 app.use('/api', apiLimiter)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const musicDir = path.resolve(__dirname, '../../music')
+const serverMusicDir = path.resolve(__dirname, '../music')
+const rootMusicDir = path.resolve(__dirname, '../../music')
+const musicDir = existsSync(serverMusicDir) ? serverMusicDir : rootMusicDir
 app.use('/music', express.static(musicDir))
 
 app.get('/api/music/tracks', async (_req, res) => {

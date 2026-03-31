@@ -247,6 +247,19 @@ export const RoomPage = () => {
   }, [room])
 
   useEffect(() => {
+    if (!room) return
+    const inActiveSession =
+      room.phase === 'countdown' || room.phase === 'sprint' || room.phase === 'debrief'
+    if (!inActiveSession) return
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [room])
+
+  useEffect(() => {
     if (!room || room.phase !== 'sprint') return
     if (typeof Notification === 'undefined') return
     if (Notification.permission === 'default') {
@@ -287,6 +300,18 @@ export const RoomPage = () => {
 
   const handleOwnerStart = () => {
     getSocket().emit('owner:start', { slug, ownerClientId: clientId })
+  }
+
+  const handleLeaveRoom = () => {
+    const inActiveSession =
+      room?.phase === 'countdown' || room?.phase === 'sprint' || room?.phase === 'debrief'
+    if (inActiveSession) {
+      const ok = window.confirm(
+        'Seans devam ediyor. Odadan cikmak istediginize emin misiniz?',
+      )
+      if (!ok) return
+    }
+    navigate('/')
   }
 
   const isOwner = room?.ownerId === clientId
@@ -471,6 +496,10 @@ export const RoomPage = () => {
             <Link
               to="/"
               className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+              onClick={(e) => {
+                e.preventDefault()
+                handleLeaveRoom()
+              }}
             >
               Çık
             </Link>
