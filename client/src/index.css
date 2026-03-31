@@ -11,3 +11,33 @@ body,
 body {
   @apply bg-slate-950 text-slate-100 antialiased;
 }
+
+/* html5-qrcode varsayilan stillerini koyu arka plan icin okunur hale getirir */
+div[id^='qr-reader'] {
+  color: #e2e8f0;
+}
+
+div[id^='qr-reader'] video {
+  border-radius: 0.75rem;
+}
+
+div[id^='qr-reader'] select,
+div[id^='qr-reader'] input {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  border-radius: 0.5rem !important;
+}
+
+div[id^='qr-reader'] button,
+div[id^='qr-reader'] .html5-qrcode-element {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #1d4ed8 !important;
+  border-radius: 0.5rem !important;
+  padding: 0.4rem 0.7rem !important;
+}
+
+div[id^='qr-reader'] a {
+  color: #93c5fd !important;
+}

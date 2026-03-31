@@ -1,6 +1,7 @@
 import './env.js'
 import cors from 'cors'
 import express from 'express'
+import { promises as fs } from 'node:fs'
 import path from 'path'
 import rateLimit from 'express-rate-limit'
 import { createServer } from 'node:http'
@@ -58,6 +59,20 @@ app.use('/api', apiLimiter)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const musicDir = path.resolve(__dirname, '../../music')
 app.use('/music', express.static(musicDir))
+
+app.get('/api/music/tracks', async (_req, res) => {
+  try {
+    const entries = await fs.readdir(musicDir, { withFileTypes: true })
+    const tracks = entries
+      .filter((e) => e.isFile())
+      .map((e) => e.name)
+      .filter((name) => /\.(mp3|wav|ogg|m4a)$/i.test(name))
+      .sort((a, b) => a.localeCompare(b, 'tr'))
+    res.json({ ok: true, tracks })
+  } catch {
+    res.json({ ok: false, tracks: [] as string[] })
+  }
+})
 
 const startedAt = Date.now()
 

@@ -19,6 +19,8 @@ export const getSocket = (): Socket => {
       reconnectionDelay: 800,
     })
     boundOrigin = target
+  } else if (socket.disconnected) {
+    socket.connect()
   }
   return socket
 }

@@ -33,6 +33,9 @@ export const HomePage = () => {
     setBusy(true)
     setError(null)
     const socket = getSocket()
+    if (socket.disconnected) {
+      socket.connect()
+    }
     const payload: RoomCreatePayload = {
       roomName: roomName.trim(),
       maxParticipants,
@@ -44,7 +47,18 @@ export const HomePage = () => {
       requiresApproval,
       clientId: getOrCreateClientId(),
     }
+    let handled = false
+    const failSafeId = window.setTimeout(() => {
+      if (handled) return
+      handled = true
+      setBusy(false)
+      setError('Sunucuya baglanilamadi. Baglantiyi kontrol edip tekrar deneyin.')
+    }, 8000)
+
     socket.emit('room:create', payload, (ack: { ok: boolean; slug?: string; error?: string }) => {
+      if (handled) return
+      handled = true
+      window.clearTimeout(failSafeId)
       setBusy(false)
       if (!ack.ok || !ack.slug) {
         setError(ack.error ?? 'Oda oluşturulamadı')
