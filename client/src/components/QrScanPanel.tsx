@@ -19,7 +19,7 @@ export const QrScanPanel = ({ elementId, onDecoded }: Props) => {
     const scanner = new Html5QrcodeScanner(
       elementId,
       // Daha hızlı tarama için fps ve kutu boyutu optimize edildi.
-      { fps: 16, qrbox: { width: 200, height: 200 }, aspectRatio: 1 },
+      { fps: 16, qrbox: { width: 240, height: 240 }, aspectRatio: 1 },
       false,
     )
     scanner.render(
@@ -41,14 +41,16 @@ export const QrScanPanel = ({ elementId, onDecoded }: Props) => {
 
   return (
     <div className="space-y-2">
-      <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-900/30 p-3">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-brand-400/60"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-brand-400/60 bg-brand-400/5"
           aria-hidden="true"
         />
-        <div id={elementId} className="mx-auto w-full max-w-xs overflow-hidden rounded-lg" />
+        <div id={elementId} className="mx-auto w-full overflow-hidden rounded-xl" />
       </div>
-      <p className="text-center text-xs text-slate-400">{hint}</p>
+      <p className="text-center text-xs text-slate-400" aria-live="polite">
+        {hint}
+      </p>
     </div>
   )
 }

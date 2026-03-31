@@ -20,6 +20,8 @@ import { persistSessionAndProfiles } from './persistence.js'
 const nanoidSlug = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 10)
 
 const DEBRIEF_MS = 5 * 60 * 1000
+// Kick/odadan çıkarılma sonrası kullanıcıların tekrar katılabilmesi için kısa süreli yeniden giriş izni.
+const REJOIN_AFTER_KICK_TTL_MS = 30 * 60 * 1000
 const EXTEND_MINUTES_DEFAULT = 5
 
 const clampDuration = (n: number) => Math.min(240, Math.max(5, Math.round(Number(n) || 25)))
@@ -41,6 +43,8 @@ type InternalParticipant = {
   distractionCount: number
   debriefSubmitted: boolean
   completedTasks: number | null
+  /** Kullanıcı results ekranında bu kişinin detaylarının gizlenmesini istiyor mu? */
+  hideResults: boolean
 }
 
 type InternalRoom = {
@@ -60,6 +64,8 @@ type InternalRoom = {
   debriefDeadlineAt: number | null
   serverMessage: string | null
   participants: Map<string, InternalParticipant>
+  /** Kick sonrası, kullanıcının mevcut oturum fazında tekrar katılabilmesi için kısa süreli izin. */
+  kickedClientIds: Map<string, number>
   sprintTimer: ReturnType<typeof setInterval> | null
   debriefTimer: ReturnType<typeof setInterval> | null
   anonCounter: number
@@ -155,6 +161,21 @@ export class RoomStore {
     }
   }
 
+  private closeRoom(io: Server, room: InternalRoom, reason: string) {
+    clearSprintTimer(room)
+    clearDebriefTimer(room)
+    io.to(room.slug).emit('room:closed', { message: reason })
+
+    // Oda kapandıktan sonra kalan tüm istemcileri kopar.
+    for (const p of room.participants.values()) {
+      if (!p.socketId) continue
+      const sock = io.sockets.sockets.get(p.socketId)
+      sock?.disconnect(true)
+    }
+
+    this.rooms.delete(room.slug)
+  }
+
   private finishSprint(io: Server, room: InternalRoom) {
     clearSprintTimer(room)
     room.phase = 'debrief'
@@ -164,6 +185,7 @@ export class RoomStore {
     for (const p of room.participants.values()) {
       p.debriefSubmitted = false
       p.completedTasks = null
+      p.hideResults = false
     }
     room.serverMessage = 'Süre doldu — tamamladığınız işi girin.'
     broadcast(io, room)
@@ -242,14 +264,17 @@ export class RoomStore {
     room.countdownStep = null
     room.sprintEndsAt = null
 
-    const participants = [...room.participants.values()].map(toPublicParticipant)
-    const nums = participants
+    const internalParticipants = [...room.participants.values()]
+    const participants = internalParticipants.map(toPublicParticipant)
+
+    const nums = internalParticipants
       .map((p) => (p.completedTasks !== null ? Number(p.completedTasks) : 0))
       .filter((n) => !Number.isNaN(n))
-    const averageCompleted =
+    const averageCompletedRaw =
       nums.length === 0 ? 0 : nums.reduce((a, b) => a + b, 0) / nums.length
 
-    const highlights: ResultHighlight[] = participants.map((p) => {
+    // Gerçek (maskelenmemiş) highlight'ler: badge/streak hesabı için kullanılacak.
+    const actualHighlights: ResultHighlight[] = internalParticipants.map((p) => {
       const completed = p.completedTasks ?? 0
       const targetPercent =
         room.targetTasks > 0 ? Math.min(100, Math.round((completed / room.targetTasks) * 100)) : 0
@@ -259,31 +284,53 @@ export class RoomStore {
         completedTasks: completed,
         targetPercent,
         isTop: false,
+        isHidden: false,
       }
     })
 
-    const maxCompleted = Math.max(0, ...highlights.map((h) => h.completedTasks))
-    for (const h of highlights) {
+    const maxCompleted = Math.max(0, ...actualHighlights.map((h) => h.completedTasks))
+    for (const h of actualHighlights) {
       h.isTop = h.completedTasks === maxCompleted && maxCompleted > 0
     }
 
-    const payload: SessionResultsPayload = {
-      slug: room.slug,
-      targetTasks: room.targetTasks,
-      averageCompleted: Math.round(averageCompleted * 10) / 10,
-      highlights,
+    const buildPayloadForViewer = (viewerId: string): SessionResultsPayload => {
+      const averageCompleted = Math.round(averageCompletedRaw * 10) / 10
+      return {
+        slug: room.slug,
+        targetTasks: room.targetTasks,
+        averageCompleted,
+        highlights: actualHighlights.map((h) => {
+          const target = room.participants.get(h.participantId)
+          if (!target) return h
+          const hide = target.hideResults && target.id !== viewerId
+          return {
+            ...h,
+            completedTasks: hide ? 0 : h.completedTasks,
+            targetPercent: hide ? 0 : h.targetPercent,
+            isTop: hide ? false : h.isTop,
+            isHidden: hide,
+          }
+        }),
+      }
     }
 
     room.serverMessage = 'Sonuçlar hazır.'
     broadcast(io, room)
-    io.to(room.slug).emit('room:results', payload)
+
+    // Results payload'ını, her katılımcı kendi görünümüyle alacak şekilde kişiye özel gönderiyoruz.
+    for (const p of internalParticipants) {
+      if (!p.socketId) continue
+      const sock = io.sockets.sockets.get(p.socketId)
+      if (!sock) continue
+      sock.emit('room:results', buildPayloadForViewer(p.id))
+    }
 
     await persistSessionAndProfiles({
       roomSlug: room.slug,
       durationMinutes: room.durationMinutes,
       targetTasks: room.targetTasks,
       participants,
-      highlights: highlights.map((h) => ({
+      highlights: actualHighlights.map((h) => ({
         participantId: h.participantId,
         label: h.displayLabel,
         completedTasks: h.completedTasks,
@@ -334,6 +381,7 @@ export class RoomStore {
       distractionCount: 0,
       debriefSubmitted: false,
       completedTasks: null,
+      hideResults: false,
     }
 
     const room: InternalRoom = {
@@ -353,6 +401,7 @@ export class RoomStore {
       debriefDeadlineAt: null,
       serverMessage: 'Oda oluşturuldu. Davet linkini paylaşın.',
       participants: new Map([[owner.id, owner]]),
+      kickedClientIds: new Map(),
       sprintTimer: null,
       debriefTimer: null,
       anonCounter,
@@ -420,18 +469,39 @@ export class RoomStore {
         }
       }
     } else {
-      if (room.phase !== 'lobby') {
+      // Kick sonrası, odanın fazı lobby değilken bile kullanıcıya yeniden giriş izni ver.
+      for (const [id, ts] of room.kickedClientIds) {
+        if (Date.now() - ts > REJOIN_AFTER_KICK_TTL_MS) room.kickedClientIds.delete(id)
+      }
+      const kickedAt = room.kickedClientIds.get(payload.clientId)
+      const isRejoiningAfterKick = kickedAt !== undefined && Date.now() - kickedAt <= REJOIN_AFTER_KICK_TTL_MS
+      if (isRejoiningAfterKick) {
+        room.kickedClientIds.delete(payload.clientId)
+      }
+
+      if (room.phase !== 'lobby' && !isRejoiningAfterKick) {
         return {
           ok: false as const,
           error: 'Oturum başladı — yeni katılım kapalı.',
         }
       }
-      if (room.participants.size >= room.maxParticipants) {
+      if (!isRejoiningAfterKick && room.participants.size >= room.maxParticipants) {
         return { ok: false as const, error: 'Oda dolu.' }
       }
 
       const anonNumber = payload.isAnonymous ? allocateAnonNumber(room) : null
       const displayName = payload.isAnonymous ? `Anonim #${anonNumber}` : payload.displayName.trim()
+
+      const approvedForRoom = isRejoiningAfterKick
+        ? true
+        : room.requiresApproval && payload.clientId !== room.ownerId
+          ? false
+          : true
+      const status = isRejoiningAfterKick
+        ? 'waiting'
+        : room.requiresApproval && payload.clientId !== room.ownerId
+          ? 'pending'
+          : 'waiting'
 
       const p: InternalParticipant = {
         id: payload.clientId,
@@ -439,11 +509,12 @@ export class RoomStore {
         displayName,
         isAnonymous: payload.isAnonymous,
         anonNumber,
-        status: room.requiresApproval && payload.clientId !== room.ownerId ? 'pending' : 'waiting',
-        approvedForRoom: room.requiresApproval && payload.clientId !== room.ownerId ? false : true,
+        status,
+        approvedForRoom,
         distractionCount: 0,
         debriefSubmitted: false,
         completedTasks: null,
+        hideResults: false,
       }
       room.participants.set(p.id, p)
     }
@@ -462,6 +533,10 @@ export class RoomStore {
       if (!room) continue
       const p = [...room.participants.values()].find((x) => x.socketId === socket.id)
       if (p) {
+        if (p.id === room.ownerId) {
+          this.closeRoom(io, room, 'Oda kurucusu çıktı — oda kapatıldı.')
+          return
+        }
         if (p.isAnonymous && p.anonNumber !== null) {
           room.freeAnonNumbers.push(p.anonNumber)
         }
@@ -574,6 +649,8 @@ export class RoomStore {
     if (!room || room.ownerId !== payload.ownerClientId) return
     if (payload.targetParticipantId === room.ownerId) return
     const target = room.participants.get(payload.targetParticipantId)
+    // Kick sonrası kısa süreli yeniden giriş hakkı ver.
+    room.kickedClientIds.set(payload.targetParticipantId, Date.now())
     if (target?.socketId) {
       const sock = io.sockets.sockets.get(target.socketId)
       sock?.emit('room:kicked', {
@@ -599,7 +676,13 @@ export class RoomStore {
     broadcast(io, room)
   }
 
-  submitDebrief(io: Server, slug: string, clientId: string, completedTasks: number) {
+  submitDebrief(
+    io: Server,
+    slug: string,
+    clientId: string,
+    completedTasks: number,
+    hideResults: boolean,
+  ) {
     const room = this.rooms.get(slug)
     if (!room || room.phase !== 'debrief') return
     const p = room.participants.get(clientId)
@@ -607,6 +690,7 @@ export class RoomStore {
     const n = Math.max(0, Math.round(Number(completedTasks)))
     p.completedTasks = n
     p.debriefSubmitted = true
+    p.hideResults = Boolean(hideResults)
     broadcast(io, room)
 
     const allDone = [...room.participants.values()].every((q) => q.debriefSubmitted)

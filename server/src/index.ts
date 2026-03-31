@@ -181,8 +181,8 @@ io.on('connection', (socket) => {
 
   socket.on(
     'debrief:submit',
-    (payload: { slug: string; clientId: string; completedTasks: number }) => {
-      store.submitDebrief(io, payload.slug, payload.clientId, payload.completedTasks)
+    (payload: { slug: string; clientId: string; completedTasks: number; hideResults: boolean }) => {
+      store.submitDebrief(io, payload.slug, payload.clientId, payload.completedTasks, payload.hideResults)
     },
   )
 

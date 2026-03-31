@@ -51,6 +51,7 @@ export const RoomPage = () => {
   const [remainingMs, setRemainingMs] = useState(0)
   const [notes, setNotes] = useState('')
   const [debriefInput, setDebriefInput] = useState('')
+  const [debriefHideResults, setDebriefHideResults] = useState(false)
   const [focusMode, setFocusModeState] = useState<FocusMode>('off')
   const [profile, setProfile] = useState<{ streak: number; badges: string[] } | null>(null)
 
@@ -159,10 +160,21 @@ export const RoomPage = () => {
       })
     }
 
+    const onClosed = (payload?: { message?: string }) => {
+      sessionStorage.removeItem(joinKey(slug))
+      setJoined(false)
+      setBanner(payload?.message ?? 'Oda kapatıldı.')
+      navigate('/', {
+        replace: true,
+        state: { bannerMessage: payload?.message ?? 'Oda kapatıldı.' },
+      })
+    }
+
     socket.on('room:state', onState)
     socket.on('room:results', onResults)
     socket.on('room:error', onError)
     socket.on('room:kicked', onKicked)
+    socket.on('room:closed', onClosed)
 
     socket.emit('room:resync', { slug, clientId })
 
@@ -171,6 +183,7 @@ export const RoomPage = () => {
       socket.off('room:results', onResults)
       socket.off('room:error', onError)
       socket.off('room:kicked', onKicked)
+      socket.off('room:closed', onClosed)
       socket.emit('room:leave')
       // Kullanıcı sayfayı terk ederse bu odadaki joined durumunu temizle.
       try {
@@ -200,6 +213,10 @@ export const RoomPage = () => {
     }
     prevPhase.current = room.phase
   }, [room])
+
+  useEffect(() => {
+    if (room?.phase === 'debrief') setDebriefHideResults(false)
+  }, [room?.phase])
 
   useEffect(() => {
     if (!room || room.phase !== 'sprint' || room.sprintEndsAt === null) {
@@ -280,14 +297,17 @@ export const RoomPage = () => {
     if (!results) return []
     return results.highlights.map((h) => ({
       name: h.displayLabel.slice(0, 12),
-      tamamlanan: h.completedTasks,
-      hedefYuzde: h.targetPercent,
+      tamamlanan: h.isHidden ? 0 : h.completedTasks,
+      hedefYuzde: h.isHidden ? 0 : h.targetPercent,
     }))
   }, [results])
 
   const handleFocusChange = async (mode: FocusMode) => {
     setFocusModeState(mode)
-    await setFocusMode(mode)
+    const result = await setFocusMode(mode)
+    if (result.message) {
+      setBanner(result.message)
+    }
   }
 
   const handleQrDecoded = useCallback(
@@ -513,6 +533,15 @@ export const RoomPage = () => {
                   onChange={(e) => setDebriefInput(e.target.value)}
                   aria-label="Tamamlanan görev sayısı"
                 />
+                <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={debriefHideResults}
+                    onChange={(e) => setDebriefHideResults(e.target.checked)}
+                    className="size-4 rounded border-slate-600"
+                  />
+                  Sonuçlarımı gizle
+                </label>
                 <button
                   type="button"
                   className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
@@ -522,6 +551,7 @@ export const RoomPage = () => {
                       slug,
                       clientId,
                       completedTasks: Number.isFinite(n) ? n : 0,
+                      hideResults: debriefHideResults,
                     })
                   }}
                 >
@@ -579,7 +609,7 @@ export const RoomPage = () => {
                     )}
                   </span>
                   <span className="tabular-nums text-slate-400">
-                    {h.completedTasks} · %{h.targetPercent}
+                    {h.isHidden ? 'Gizli' : `${h.completedTasks} · %{h.targetPercent}`}
                   </span>
                 </li>
               ))}

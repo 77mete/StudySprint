@@ -71,6 +71,8 @@ export type DebriefSubmitPayload = {
   slug: string
   clientId: string
   completedTasks: number
+  /** İşaretliyse, bu kullanıcının sonuçları diğer kullanıcılara gizli gösterilir. */
+  hideResults: boolean
 }
 
 export type OwnerKickPayload = {
@@ -120,6 +122,8 @@ export type ResultHighlight = {
   completedTasks: number
   targetPercent: number
   isTop: boolean
+  /** Bu highlight'in diğer kullanıcılara gizli görünmesi gerekir. */
+  isHidden: boolean
 }
 
 export type SessionResultsPayload = {

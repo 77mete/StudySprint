@@ -259,6 +259,7 @@ export class RoomStore {
         completedTasks: completed,
         targetPercent,
         isTop: false,
+        isHidden: false,
       }
     })
 
@@ -599,7 +600,13 @@ export class RoomStore {
     broadcast(io, room)
   }
 
-  submitDebrief(io: Server, slug: string, clientId: string, completedTasks: number) {
+  submitDebrief(
+    io: Server,
+    slug: string,
+    clientId: string,
+    completedTasks: number,
+    _hideResults: boolean,
+  ) {
     const room = this.rooms.get(slug)
     if (!room || room.phase !== 'debrief') return
     const p = room.participants.get(clientId)

@@ -8,6 +8,7 @@ export const JoinPage = () => {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [showQr, setShowQr] = useState(false)
 
   const goToRoom = useCallback(
     async (rawSlug: string) => {
@@ -66,8 +67,31 @@ export const JoinPage = () => {
         </button>
 
         <div className="text-left">
-          <p className="mb-2 text-center text-xs text-slate-500">veya QR okut</p>
-          <QrScanPanel elementId="qr-reader-join" onDecoded={handleQr} />
+          {!showQr ? (
+            <button
+              type="button"
+              onClick={() => setShowQr(true)}
+              className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 text-sm font-semibold text-slate-100 hover:bg-slate-900/60"
+            >
+              QR ile oda kodu okut
+            </button>
+          ) : (
+            <div className="mt-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-left text-sm font-semibold text-white">QR tarayıcı</p>
+                <button
+                  type="button"
+                  onClick={() => setShowQr(false)}
+                  className="rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-900/60"
+                >
+                  Kapat
+                </button>
+              </div>
+              <div className="mt-3">
+                <QrScanPanel elementId="qr-reader-join" onDecoded={handleQr} />
+              </div>
+            </div>
+          )}
         </div>
 
         <Link to="/" className="block text-sm text-brand-400 hover:text-brand-300">
