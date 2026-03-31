@@ -36,8 +36,17 @@ div[id^='qr-reader'] .html5-qrcode-element {
   border: 1px solid #1d4ed8 !important;
   border-radius: 0.5rem !important;
   padding: 0.4rem 0.7rem !important;
+  margin-right: 0.45rem !important;
+  margin-bottom: 0.45rem !important;
 }
 
 div[id^='qr-reader'] a {
   color: #93c5fd !important;
+}
+
+div[id^='qr-reader'] svg,
+div[id^='qr-reader'] path {
+  fill: #93c5fd !important;
+  color: #93c5fd !important;
+  stroke: #93c5fd !important;
 }

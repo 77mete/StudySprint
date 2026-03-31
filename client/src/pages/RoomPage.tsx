@@ -609,7 +609,7 @@ export const RoomPage = () => {
                     )}
                   </span>
                   <span className="tabular-nums text-slate-400">
-                    {h.isHidden ? 'Gizli' : `${h.completedTasks} · %{h.targetPercent}`}
+                    {h.isHidden ? 'Gizli' : `${h.completedTasks} · %${h.targetPercent}`}
                   </span>
                 </li>
               ))}

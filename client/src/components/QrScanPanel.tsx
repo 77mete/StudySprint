@@ -16,6 +16,29 @@ export const QrScanPanel = ({ elementId, onDecoded }: Props) => {
   }, [onDecoded])
 
   useEffect(() => {
+    const tr = (s: string) =>
+      s
+        .replace('Request Camera Permissions', 'Kamera izni iste')
+        .replace('Request Permission', 'Izin iste')
+        .replace('Start Scanning', 'Taramayi baslat')
+        .replace('Stop Scanning', 'Taramayi durdur')
+        .replace('Stop Camera', 'Kamerayi durdur')
+        .replace('Scan an Image File', 'Resim dosyasindan tara')
+        .replace('Choose Image', 'Resim sec')
+        .replace('No camera found', 'Kamera bulunamadi')
+        .replace('Camera streaming has started', 'Kamera acildi')
+
+    const applyTurkish = () => {
+      const root = document.getElementById(elementId)
+      if (!root) return
+      const nodes = root.querySelectorAll('button, span, label, a, option, div')
+      nodes.forEach((n) => {
+        if (!n.textContent) return
+        const next = tr(n.textContent)
+        if (next !== n.textContent) n.textContent = next
+      })
+    }
+
     const scanner = new Html5QrcodeScanner(
       elementId,
       // Daha hızlı tarama için fps ve kutu boyutu optimize edildi.
@@ -32,8 +55,10 @@ export const QrScanPanel = ({ elementId, onDecoded }: Props) => {
         setHint('Tarama yapılıyor…')
       },
     )
+    const localizeTimer = window.setInterval(applyTurkish, 500)
     scannerRef.current = scanner
     return () => {
+      window.clearInterval(localizeTimer)
       void scanner.clear().catch(() => {})
       scannerRef.current = null
     }

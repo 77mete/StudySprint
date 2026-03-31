@@ -13,6 +13,13 @@ const TRACK_HINTS: Record<Exclude<FocusMode, 'off'>, string[]> = {
   beyazGurultu: ['beyaz gürültü', 'beyaz gurultu', 'white noise'],
 }
 
+const TRACK_FILE_CANDIDATES: Record<Exclude<FocusMode, 'off'>, string[]> = {
+  mozart40: ['Mozart 40. Senfoni.mp3', 'Mozart.mp3', 'mozart.mp3'],
+  odak: ['Odaklanma ve Konsantrasyon Arttırıcı.mp3', 'odak.mp3', 'Odak.mp3'],
+  gnossienne1: ['Gnossienne No.1.mp3', 'Gnossienne.mp3', 'gnossienne.mp3'],
+  beyazGurultu: ['Beyaz Gürültü.mp3', 'byzGurultu.mp3', 'beyazGurultu.mp3'],
+}
+
 type FocusSetResult = {
   ok: boolean
   source: 'off' | 'file'
@@ -90,9 +97,22 @@ const playFileFocus = async (url: string): Promise<boolean> => {
   }
 }
 
+const tryPlayCandidates = async (mode: Exclude<FocusMode, 'off'>) => {
+  const candidates = TRACK_FILE_CANDIDATES[mode]
+  for (const fileName of candidates) {
+    const ok = await playFileFocus(apiUrl(`/music/${encodeURIComponent(fileName)}`))
+    if (ok) return true
+    await stop()
+  }
+  return false
+}
+
 export const setFocusMode = async (mode: FocusMode): Promise<FocusSetResult> => {
   await stop()
   if (mode === 'off') return { ok: true, source: 'off' }
+
+  const directPlay = await tryPlayCandidates(mode)
+  if (directPlay) return { ok: true, source: 'file' }
 
   const fileName = await resolveTrackFileName(mode)
   if (!fileName) {
