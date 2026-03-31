@@ -114,7 +114,7 @@ export const HomePage = () => {
                 className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none ring-brand-500/40 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Adınız (örn. Ayşe)"
+                placeholder="Adınız (örn. Mete)"
                 autoComplete="nickname"
                 disabled={isAnonymous}
               />

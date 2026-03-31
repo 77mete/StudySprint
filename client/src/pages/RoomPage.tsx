@@ -10,7 +10,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { QrScanPanel } from '../components/QrScanPanel'
 import { RoomQr } from '../components/RoomQr'
 import { getOrCreateClientId } from '../lib/clientId'
 import type { FocusMode } from '../lib/focusAudio'
@@ -137,8 +136,18 @@ export const RoomPage = () => {
       }
     }
     const onError = (e: { message: string }) => {
+      // Resync sırasında oda bulunamazsa/başka bir problem olursa,
+      // bu odaya "zaten katılmış" durumunu sıfırlayıp join akışına düşelim.
+      try {
+        sessionStorage.removeItem(joinKey(slug))
+      } catch {
+        // yoksay
+      }
+      setJoined(false)
+      setRoom(null)
+      setResults(null)
       setJoinError(e.message)
-      setBanner(e.message)
+      setBanner(null)
     }
     const onKicked = (payload?: { message?: string }) => {
       sessionStorage.removeItem(joinKey(slug))
@@ -163,6 +172,12 @@ export const RoomPage = () => {
       socket.off('room:error', onError)
       socket.off('room:kicked', onKicked)
       socket.emit('room:leave')
+      // Kullanıcı sayfayı terk ederse bu odadaki joined durumunu temizle.
+      try {
+        sessionStorage.removeItem(joinKey(slug))
+      } catch {
+        // yoksay
+      }
     }
   }, [slug, clientId, joined, navigate])
 
@@ -366,10 +381,6 @@ export const RoomPage = () => {
           >
             Katıl
           </button>
-          <div>
-            <p className="mb-2 text-center text-xs text-slate-500">Bu odanın QR kodunu okut</p>
-            <QrScanPanel elementId="qr-reader-room" onDecoded={handleQrDecoded} />
-          </div>
           <Link to="/" className="block text-center text-sm text-brand-400">
             Ana sayfa
           </Link>
@@ -852,7 +863,7 @@ const SprintSection = ({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-          <h3 className="text-sm font-semibold text-white">Sakin ses (yerel)</h3>
+          <h3 className="text-sm font-semibold text-white">Odak müzikleri (yerel)</h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {(
               [

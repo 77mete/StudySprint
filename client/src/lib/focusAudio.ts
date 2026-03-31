@@ -20,7 +20,8 @@ const stop = () => {
   try {
     audio.pause()
     audio.currentTime = 0
-    audio.src = ''
+    audio.removeAttribute('src')
+    audio.load()
   } catch {
     // yoksay
   }
@@ -34,16 +35,22 @@ export const setFocusMode = async (mode: FocusMode) => {
   const { fileName } = TRACKS[mode]
   const url = apiUrl(`/music/${encodeURIComponent(fileName)}`)
 
-  const a = new Audio(url)
+  const a = new Audio()
   a.loop = true
   a.preload = 'auto'
   a.volume = 0.35
+  a.src = url
+  a.load()
 
   audio = a
 
   try {
     a.currentTime = 0
-    await a.play()
+    const p = a.play()
+    // Tarayıcı bazı durumlarda Promise döndürüyor.
+    if (p && typeof (p as Promise<void>).catch === 'function') {
+      await p
+    }
   } catch {
     // Tarayıcı autoplay kısıtları uygulayabilir.
   }

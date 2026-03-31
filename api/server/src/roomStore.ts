@@ -36,6 +36,8 @@ type InternalParticipant = {
   isAnonymous: boolean
   status: ParticipantStatus
   approvedForRoom: boolean
+  /** Kullanıcı anonim ise atanmış numara; kullanıcı ayrılınca serbest bırakılır. */
+  anonNumber: number | null
   distractionCount: number
   debriefSubmitted: boolean
   completedTasks: number | null
@@ -61,14 +63,31 @@ type InternalRoom = {
   sprintTimer: ReturnType<typeof setInterval> | null
   debriefTimer: ReturnType<typeof setInterval> | null
   anonCounter: number
+  /** Serbest kalan anonim numaralar (en küçüğü tekrar verilir). */
+  freeAnonNumbers: number[]
+}
+
+const allocateAnonNumber = (room: InternalRoom): number => {
+  if (room.freeAnonNumbers.length > 0) {
+    room.freeAnonNumbers.sort((a, b) => a - b)
+    const n = room.freeAnonNumbers.shift()
+    if (n !== undefined) return n
+  }
+  room.anonCounter += 1
+  return room.anonCounter
 }
 
 const computeCanOwnerStart = (room: InternalRoom): boolean => {
-  const nonOwners = [...room.participants.values()].filter(
-    (p) => p.id !== room.ownerId && p.socketId !== null,
-  )
-  if (nonOwners.length === 0) return true
-  return nonOwners.every((p) => p.status === 'ready')
+  const owner = room.participants.get(room.ownerId)
+  const ownerOnline = owner?.socketId !== null
+  if (!ownerOnline) return false
+
+  const onlineParticipants = [...room.participants.values()].filter((p) => p.socketId !== null)
+  if (onlineParticipants.length !== room.maxParticipants) return false
+
+  return onlineParticipants
+    .filter((p) => p.id !== room.ownerId)
+    .every((p) => p.status === 'ready')
 }
 
 const toPublicParticipant = (p: InternalParticipant): PublicParticipant => ({
@@ -311,6 +330,7 @@ export class RoomStore {
       isAnonymous: payload.isAnonymous,
       status: 'waiting',
       approvedForRoom: true,
+      anonNumber: payload.isAnonymous ? anonCounter : null,
       distractionCount: 0,
       debriefSubmitted: false,
       completedTasks: null,
@@ -336,6 +356,7 @@ export class RoomStore {
       sprintTimer: null,
       debriefTimer: null,
       anonCounter,
+      freeAnonNumbers: [],
     }
 
     this.rooms.set(slug, room)
@@ -374,9 +395,15 @@ export class RoomStore {
       existing.socketId = socket.id
       if (payload.isAnonymous) {
         existing.isAnonymous = true
+        if (existing.anonNumber === null) {
+          const n = allocateAnonNumber(room)
+          existing.anonNumber = n
+          existing.displayName = `Anonim #${n}`
+        }
       } else {
         existing.displayName = payload.displayName.trim()
         existing.isAnonymous = false
+        existing.anonNumber = null
       }
       if (room.phase === 'lobby') {
         if (existing.approvedForRoom) {
@@ -403,16 +430,15 @@ export class RoomStore {
         return { ok: false as const, error: 'Oda dolu.' }
       }
 
-      room.anonCounter += 1
-      const displayName = payload.isAnonymous
-        ? `Anonim #${room.anonCounter}`
-        : payload.displayName.trim()
+      const anonNumber = payload.isAnonymous ? allocateAnonNumber(room) : null
+      const displayName = payload.isAnonymous ? `Anonim #${anonNumber}` : payload.displayName.trim()
 
       const p: InternalParticipant = {
         id: payload.clientId,
         socketId: socket.id,
         displayName,
         isAnonymous: payload.isAnonymous,
+        anonNumber,
         status: room.requiresApproval && payload.clientId !== room.ownerId ? 'pending' : 'waiting',
         approvedForRoom: room.requiresApproval && payload.clientId !== room.ownerId ? false : true,
         distractionCount: 0,
@@ -436,8 +462,10 @@ export class RoomStore {
       if (!room) continue
       const p = [...room.participants.values()].find((x) => x.socketId === socket.id)
       if (p) {
-        p.socketId = null
-        p.status = 'offline'
+        if (p.isAnonymous && p.anonNumber !== null) {
+          room.freeAnonNumbers.push(p.anonNumber)
+        }
+        room.participants.delete(p.id)
       }
       void socket.leave(slug)
       room.serverMessage = 'Bir katılımcı ayrıldı veya bağlantı koptu.'
@@ -554,6 +582,9 @@ export class RoomStore {
       sock?.leave(payload.slug)
       sock?.disconnect(true)
     }
+    if (target?.isAnonymous && target.anonNumber !== null) {
+      room.freeAnonNumbers.push(target.anonNumber)
+    }
     room.participants.delete(payload.targetParticipantId)
     room.serverMessage = 'Bir katılımcı odadan çıkarıldı.'
     broadcast(io, room)
@@ -614,6 +645,11 @@ export class RoomStore {
       return
     }
     p.socketId = socket.id
+    if (p.isAnonymous && p.anonNumber === null) {
+      const n = allocateAnonNumber(room)
+      p.anonNumber = n
+      p.displayName = `Anonim #${n}`
+    }
     if (p.status === 'offline') {
       if (room.requiresApproval && !p.approvedForRoom) {
         p.status = 'pending'
