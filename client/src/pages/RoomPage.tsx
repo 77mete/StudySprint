@@ -1,6 +1,6 @@
 import type { PublicRoomState, RoomPeekResponse, SessionResultsPayload } from '../shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -15,7 +15,7 @@ import { getOrCreateClientId } from '../lib/clientId'
 import type { FocusMode } from '../lib/focusAudio'
 import { setFocusMode } from '../lib/focusAudio'
 import { parseRoomSlugFromText } from '../lib/parseRoomUrl'
-import { playSessionEndChime } from '../lib/sound'
+import { playCountdownTick, playSessionEndChime } from '../lib/sound'
 import { apiUrl } from '../lib/apiBase'
 import { getSocket } from '../lib/socket'
 
@@ -56,6 +56,28 @@ export const RoomPage = () => {
   const [profile, setProfile] = useState<{ streak: number; badges: string[] } | null>(null)
 
   const prevPhase = useRef<string | null>(null)
+  const prevCountdownStep = useRef<number | null>(null)
+
+  const inActiveSession = Boolean(
+    room &&
+      (room.phase === 'countdown' || room.phase === 'sprint' || room.phase === 'debrief'),
+  )
+
+  const leaveBlocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      joined &&
+      inActiveSession &&
+      currentLocation.pathname !== nextLocation.pathname,
+  )
+
+  useEffect(() => {
+    if (leaveBlocker.state !== 'blocked') return
+    const ok = window.confirm(
+      'Seans devam ediyor. Odadan cikmak istediginize emin misiniz?',
+    )
+    if (ok) leaveBlocker.proceed()
+    else leaveBlocker.reset()
+  }, [leaveBlocker])
 
   useEffect(() => {
     setRoom(null)
@@ -137,6 +159,7 @@ export const RoomPage = () => {
       }
     }
     const onError = (e: { message: string }) => {
+      void setFocusMode('off')
       // Resync sırasında oda bulunamazsa/başka bir problem olursa,
       // bu odaya "zaten katılmış" durumunu sıfırlayıp join akışına düşelim.
       try {
@@ -151,6 +174,7 @@ export const RoomPage = () => {
       setBanner(null)
     }
     const onKicked = (payload?: { message?: string }) => {
+      void setFocusMode('off')
       sessionStorage.removeItem(joinKey(slug))
       setJoined(false)
       setBanner(payload?.message ?? 'Odadan çıkartıldınız.')
@@ -161,6 +185,7 @@ export const RoomPage = () => {
     }
 
     const onClosed = (payload?: { message?: string }) => {
+      void setFocusMode('off')
       sessionStorage.removeItem(joinKey(slug))
       setJoined(false)
       setBanner(payload?.message ?? 'Oda kapatıldı.')
@@ -184,6 +209,7 @@ export const RoomPage = () => {
       socket.off('room:error', onError)
       socket.off('room:kicked', onKicked)
       socket.off('room:closed', onClosed)
+      void setFocusMode('off')
       socket.emit('room:leave')
       // Kullanıcı sayfayı terk ederse bu odadaki joined durumunu temizle.
       try {
@@ -211,7 +237,23 @@ export const RoomPage = () => {
       void setFocusMode('off')
       setFocusModeState('off')
     }
+    if (prevPhase.current !== 'results' && room.phase === 'results') {
+      void setFocusMode('off')
+      setFocusModeState('off')
+    }
     prevPhase.current = room.phase
+  }, [room])
+
+  useEffect(() => {
+    if (!room || room.phase !== 'countdown' || room.countdownStep == null) {
+      prevCountdownStep.current = null
+      return
+    }
+    const step = room.countdownStep
+    if (step >= 1 && step <= 3 && prevCountdownStep.current !== step) {
+      playCountdownTick()
+    }
+    prevCountdownStep.current = step
   }, [room])
 
   useEffect(() => {
@@ -303,14 +345,16 @@ export const RoomPage = () => {
   }
 
   const handleLeaveRoom = () => {
-    const inActiveSession =
+    const active =
       room?.phase === 'countdown' || room?.phase === 'sprint' || room?.phase === 'debrief'
-    if (inActiveSession) {
+    if (active) {
       const ok = window.confirm(
         'Seans devam ediyor. Odadan cikmak istediginize emin misiniz?',
       )
       if (!ok) return
     }
+    void setFocusMode('off')
+    setFocusModeState('off')
     navigate('/')
   }
 

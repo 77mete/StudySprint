@@ -27,6 +27,8 @@ type FocusSetResult = {
 }
 
 let audio: HTMLAudioElement | null = null
+/** blob: ile oynatılıyorsa stop sırasında revoke edilir */
+let focusObjectUrl: string | null = null
 let availableTracksPromise: Promise<string[]> | null = null
 
 const stop = () => {
@@ -40,6 +42,14 @@ const stop = () => {
       // yoksay
     }
     audio = null
+  }
+  if (focusObjectUrl) {
+    try {
+      URL.revokeObjectURL(focusObjectUrl)
+    } catch {
+      // yoksay
+    }
+    focusObjectUrl = null
   }
 }
 
@@ -76,12 +86,33 @@ const resolveTrackFileName = async (mode: Exclude<FocusMode, 'off'>): Promise<st
   return null
 }
 
-const playFileFocus = (url: string): Promise<{ ok: boolean; reason?: string }> => {
+/**
+ * Önce dosyayı indirip blob ile çalar: döngü sırasında ağ kesintilerinden kaynaklı
+ * takılmaları azaltır. fetch başarısız olursa doğrudan URL ile yayın moduna düşer.
+ */
+const playFileFocus = async (url: string): Promise<{ ok: boolean; reason?: string }> => {
+  let playUrl = url
+  try {
+    const res = await fetch(url)
+    if (res.ok) {
+      const blob = await res.blob()
+      focusObjectUrl = URL.createObjectURL(blob)
+      playUrl = focusObjectUrl
+    }
+  } catch {
+    // Ağ hatası: eski davranış (doğrudan yayın)
+  }
+
   const a = new Audio()
   a.loop = true
   a.preload = 'auto'
   a.volume = 0.35
-  a.src = url
+  try {
+    a.playsInline = true
+  } catch {
+    // yoksay
+  }
+  a.src = playUrl
   a.load()
   audio = a
 
