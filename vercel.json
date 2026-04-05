@@ -3,27 +3,5 @@
   "installCommand": "npm ci --prefix ./client",
   "buildCommand": "npm run build --prefix ./client",
   "outputDirectory": "client/dist",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://studysprintserver-production.up.railway.app/api/:path*"
-    },
-    {
-      "source": "/socket.io/:path*",
-      "destination": "https://studysprintserver-production.up.railway.app/socket.io/:path*"
-    },
-    {
-      "source": "/socket.io/",
-      "destination": "https://studysprintserver-production.up.railway.app/socket.io/"
-    },
-    {
-      "source": "/socket.io",
-      "destination": "https://studysprintserver-production.up.railway.app/socket.io"
-    },
-    {
-      "source": "/music/:path*",
-      "destination": "https://studysprintserver-production.up.railway.app/music/:path*"
-    },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

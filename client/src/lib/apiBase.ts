@@ -1,31 +1,52 @@
 import { getAuthToken } from './authToken'
 
 /**
- * Üretimde tam kök URL (örn. https://api-xxx.up.railway.app).
- * Boş / RELATIVE: aynı origin — Vite dev proxy veya Vercel `vercel.json` rewrite ile backend.
- * Vercel’de CORS sorununu önlemek için genelde boş bırakıp rewrite kullanın.
+ * Bu kök, VITE_BACKEND_URL yokken üretim + Vercel host’larında doğrudan Railway’e bağlanır.
+ * Kendi deploy’unda VITE_BACKEND_URL ile override et.
+ */
+const DEFAULT_RAILWAY_BACKEND = 'https://studysprintserver-production.up.railway.app'
+
+/**
+ * Üretimde tam kök URL (örn. https://xxx.up.railway.app).
+ * Boş / RELATIVE: geliştirmede Vite proxy (`/api`, `/socket.io`).
+ * Vercel’de env silinmişse güvenli varsayılan Railway kökü kullanılır (CORS sunucuda *.vercel.app).
  */
 export const getBackendOrigin = (): string => {
   const raw = import.meta.env.VITE_BACKEND_URL
-  if (typeof raw !== 'string') return ''
-  let s = raw.trim().replace(/\/$/, '')
-  if (!s || s === 'undefined' || s === 'null') return ''
-  if (/^relative$/i.test(s) || s === '/') return ''
+  let s = typeof raw === 'string' ? raw.trim().replace(/\/$/, '') : ''
+  if (s === 'undefined' || s === 'null') s = ''
 
-  if (!/^https?:\/\//i.test(s)) {
-    s = `https://${s}`
+  if (/^relative$/i.test(s) || s === '/') {
+    return ''
   }
 
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    if (s.startsWith('http://')) {
-      console.warn(
-        '[StudySprint] VITE_BACKEND_URL http ile tanımlı; sayfa HTTPS. Karışık içerik engellenir. Aynı kök (/api) kullanılıyor — backend için HTTPS kullanın veya env’i boş bırakın.',
-      )
-      return ''
+  if (s) {
+    if (!/^https?:\/\//i.test(s)) {
+      s = `https://${s}`
     }
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+      if (s.startsWith('http://')) {
+        console.warn(
+          '[StudySprint] VITE_BACKEND_URL http; sayfa HTTPS. Railway için https kullanın veya boş bırakıp varsayılanı kullanın.',
+        )
+        if (import.meta.env.PROD && window.location.hostname.endsWith('vercel.app')) {
+          return DEFAULT_RAILWAY_BACKEND
+        }
+        return ''
+      }
+    }
+    return s
   }
 
-  return s
+  if (
+    import.meta.env.PROD &&
+    typeof window !== 'undefined' &&
+    window.location.hostname.endsWith('vercel.app')
+  ) {
+    return DEFAULT_RAILWAY_BACKEND
+  }
+
+  return ''
 }
 
 export const apiUrl = (path: string): string => {
@@ -36,7 +57,6 @@ export const apiUrl = (path: string): string => {
 
 /**
  * Tüm API çağrıları: credentials + localStorage JWT otomatik `Authorization: Bearer`.
- * İstek başına `X-Client-Id` vb. eklemek için init.headers ile birleştirin; Bearer yoksa eklenir.
  */
 export const apiFetch = (path: string, init: RequestInit = {}): Promise<Response> => {
   const url = apiUrl(path)
