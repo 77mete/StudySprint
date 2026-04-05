@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { apiUrl, getBackendOrigin } from '../lib/apiBase'
+import { apiFetch, apiUrl, getBackendOrigin } from '../lib/apiBase'
 import { getAuthToken, setAuthToken } from '../lib/authToken'
 import { getOrCreateClientId } from '../lib/clientId'
 
@@ -54,7 +54,7 @@ export const AuthPage = () => {
         mode === 'login'
           ? { email, password, clientId }
           : { email, password, clientId }
-      const r = await fetch(apiUrl(path), {
+      const r = await apiFetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -134,7 +134,7 @@ export const AuthPage = () => {
     }
     setBusy(true)
     try {
-      const r = await fetch(apiUrl('/api/auth/forgot-password'), {
+      const r = await apiFetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -190,7 +190,7 @@ export const AuthPage = () => {
     setBusy(true)
     try {
       const t = getAuthToken()
-      const r = await fetch(apiUrl('/api/auth/change-password'), {
+      const r = await apiFetch('/api/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

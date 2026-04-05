@@ -29,3 +29,12 @@ export const apiUrl = (path: string): string => {
   const base = getBackendOrigin()
   return base ? `${base}${p}` : p
 }
+
+/** Cross-origin (Vercel → Railway) isteklerde çerez / CORS uyumu için credentials sabit. */
+export const apiFetch = (path: string, init: RequestInit = {}): Promise<Response> => {
+  const url = apiUrl(path)
+  return fetch(url, {
+    ...init,
+    credentials: 'include',
+  })
+}

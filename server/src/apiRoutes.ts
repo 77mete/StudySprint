@@ -93,8 +93,18 @@ export const registerApiRoutes = (app: Express) => {
         },
       })
     } catch (e) {
-      console.error(e)
-      res.status(500).json({ ok: false, error: 'Kayıt başarısız.' })
+      console.error('[auth/register]', e)
+      let error = 'Kayıt başarısız.'
+      const ctor = e instanceof Error ? e.constructor.name : ''
+      const code =
+        e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : ''
+      if (code === 'P2002') {
+        error = 'Bu e-posta veya cihaz kimliği zaten kayıtlı.'
+      } else if (ctor === 'PrismaClientInitializationError' || code === 'P1001') {
+        error =
+          'Veritabanına bağlanılamıyor. Railway’de DATABASE_URL (Supabase: sslmode=require) ve `npx prisma migrate deploy` adımlarını kontrol edin.'
+      }
+      res.status(500).json({ ok: false, error })
     }
   })
 

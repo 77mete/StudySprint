@@ -1,4 +1,4 @@
-import { apiUrl } from './apiBase'
+import { apiFetch, apiUrl } from './apiBase'
 
 /**
  * Odak müzikleri: Sadece `music/` klasöründeki parçalar.
@@ -64,7 +64,7 @@ const normalizeTrackName = (v: string) =>
 
 const getAvailableTracks = async (): Promise<string[]> => {
   if (!availableTracksPromise) {
-    availableTracksPromise = fetch(apiUrl('/api/music/tracks'))
+    availableTracksPromise = apiFetch('/api/music/tracks')
       .then((r) => r.json())
       .then((d: { ok?: boolean; tracks?: string[] }) => (d.ok ? d.tracks ?? [] : []))
       .catch(() => [])
@@ -93,7 +93,7 @@ const resolveTrackFileName = async (mode: Exclude<FocusMode, 'off'>): Promise<st
 const playFileFocus = async (url: string): Promise<{ ok: boolean; reason?: string }> => {
   let playUrl = url
   try {
-    const res = await fetch(url)
+    const res = await fetch(url, { credentials: 'include' })
     if (res.ok) {
       const blob = await res.blob()
       focusObjectUrl = URL.createObjectURL(blob)

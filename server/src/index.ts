@@ -1,5 +1,5 @@
 import './env.js'
-import cors from 'cors'
+import cors, { type CorsOptions } from 'cors'
 import express from 'express'
 import { existsSync } from 'node:fs'
 import { promises as fs } from 'node:fs'
@@ -29,15 +29,16 @@ const parseClientOrigins = (): string[] => {
       .map((s) => s.trim())
       .filter(Boolean)
   }
-  return DEFAULT_ORIGINS
+  return []
 }
 
-const CLIENT_ORIGINS = parseClientOrigins()
+/** İzinli kökenler: varsayılanlar + CLIENT_ORIGIN (virgülle çoklu). */
+const ALLOWED_ORIGINS = [...new Set([...DEFAULT_ORIGINS, ...parseClientOrigins()])]
 
-/** Tarayıcıdan gelen Origin başlığını kabul et (CORS + Socket.IO). */
+/** Tarayıcıdan gelen Origin başlığını kabul et (CORS + Socket.IO). * kullanılmaz. */
 const isClientOriginAllowed = (origin: string | undefined): boolean => {
   if (origin === undefined || origin === '') return true
-  if (CLIENT_ORIGINS.includes(origin)) return true
+  if (ALLOWED_ORIGINS.includes(origin)) return true
   try {
     const u = new URL(origin)
     if (u.protocol === 'https:' && u.hostname.endsWith('.vercel.app')) return true
@@ -46,6 +47,16 @@ const isClientOriginAllowed = (origin: string | undefined): boolean => {
     return false
   }
   return false
+}
+
+const corsDynamicOptions: CorsOptions = {
+  origin: (origin, cb) => {
+    cb(null, isClientOriginAllowed(origin))
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Id'],
+  optionsSuccessStatus: 204,
 }
 
 const app = express()
@@ -59,17 +70,12 @@ const io = new Server(httpServer, {
       cb(null, isClientOriginAllowed(origin))
     },
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 })
 
 app.use(express.json({ limit: '32kb' }))
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      cb(null, isClientOriginAllowed(origin))
-    },
-  }),
-)
+app.use(cors(corsDynamicOptions))
 
 const apiLimiter = rateLimit({
   windowMs: 60_000,

@@ -2,7 +2,7 @@ import type { RoomCreatePayload } from '../shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
-import { apiUrl } from '../lib/apiBase'
+import { apiFetch } from '../lib/apiBase'
 import { getAuthToken } from '../lib/authToken'
 import { getOrCreateClientId } from '../lib/clientId'
 import { primeCountdownAudio } from '../lib/countdownAudio'
@@ -55,12 +55,10 @@ export const HomePage = () => {
       setTodayTasks(0)
       return
     }
-    const gUrl = apiUrl('/api/goals')
-    const aUrl = apiUrl('/api/analytics/full')
     try {
       const [gr, ar] = await Promise.all([
-        fetch(gUrl, { headers: authHeaders() }).then((r) => r.json()),
-        fetch(aUrl, { headers: authHeaders() }).then((r) => r.json()),
+        apiFetch('/api/goals', { headers: authHeaders() }).then((r) => r.json()),
+        apiFetch('/api/analytics/full', { headers: authHeaders() }).then((r) => r.json()),
       ])
       if (ar?.ok) {
         const tm = Number(ar.todayMinutes) || 0
@@ -124,7 +122,7 @@ export const HomePage = () => {
       tasksGoal: goalDraftTasks,
     }
     try {
-      const r = await fetch(apiUrl('/api/goals'), {
+      const r = await apiFetch('/api/goals', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(body),

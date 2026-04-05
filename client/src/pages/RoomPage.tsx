@@ -22,7 +22,8 @@ import {
 } from '../lib/countdownAudio'
 import { parseRoomSlugFromText } from '../lib/parseRoomUrl'
 import { playSessionEndChime } from '../lib/sound'
-import { apiUrl } from '../lib/apiBase'
+import { apiFetch, apiUrl } from '../lib/apiBase'
+import { useTheme } from '../context/ThemeContext'
 import { getSocket } from '../lib/socket'
 
 const joinKey = (slug: string) => `studysprint_joined_${slug}`
@@ -42,6 +43,7 @@ export const RoomPage = () => {
   const { slug: rawSlug = '' } = useParams()
   const slug = rawSlug.trim().toLowerCase()
   const navigate = useNavigate()
+  const { theme } = useTheme()
   const clientId = useMemo(() => getOrCreateClientId(), [])
 
   const [room, setRoom] = useState<PublicRoomState | null>(null)
@@ -214,7 +216,7 @@ export const RoomPage = () => {
   }, [peek])
 
   useEffect(() => {
-    void fetch(apiUrl(`/api/profile/${clientId}`))
+    void apiFetch(`/api/profile/${clientId}`)
       .then((r) => r.json())
       .then((d: { ok?: boolean; streakDays?: number; badges?: string[]; xp?: number }) => {
         if (d.ok)
@@ -491,6 +493,24 @@ export const RoomPage = () => {
     }))
   }, [sortedLeaderboard])
 
+  const chartPalette = useMemo(
+    () =>
+      theme === 'dark'
+        ? {
+            grid: '#334155',
+            tick: '#94a3b8',
+            tooltipBg: '#0f172a',
+            tooltipBorder: '#334155',
+          }
+        : {
+            grid: '#cbd5e1',
+            tick: '#475569',
+            tooltipBg: '#ffffff',
+            tooltipBorder: '#e2e8f0',
+          },
+    [theme],
+  )
+
   const handleFocusChange = async (mode: FocusMode) => {
     setFocusModeState(mode)
     const result = await setFocusMode(mode)
@@ -515,8 +535,11 @@ export const RoomPage = () => {
 
   if (!slug) {
     return (
-      <div className="p-8 text-center text-slate-400">
-        Geçersiz oda. <Link to="/">Ana sayfa</Link>
+      <div className="p-8 text-center text-slate-600 dark:text-slate-400">
+        Geçersiz oda.{' '}
+        <Link to="/" className="text-brand-700 dark:text-brand-400">
+          Ana sayfa
+        </Link>
       </div>
     )
   }
@@ -532,8 +555,10 @@ export const RoomPage = () => {
     if (peekError || !peek) {
       return (
         <div className="min-h-full bg-slate-100 px-4 py-16 text-center dark:bg-slate-950">
-          <p className="text-lg text-amber-200">Bu kodla bir oda bulunamadı.</p>
-          <Link to="/" className="mt-4 inline-block text-brand-400">
+          <p className="text-lg text-amber-800 dark:text-amber-200">
+            Bu kodla bir oda bulunamadı.
+          </p>
+          <Link to="/" className="mt-4 inline-block text-brand-700 dark:text-brand-400">
             Ana sayfaya dön
           </Link>
         </div>
@@ -542,24 +567,24 @@ export const RoomPage = () => {
 
     return (
       <div className="min-h-full bg-slate-100 px-4 py-12 dark:bg-slate-950">
-        <div className="mx-auto max-w-md space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-          <h1 className="text-xl font-semibold text-white">Odaya katıl</h1>
-          <p className="text-sm text-slate-400">
-            <span className="font-medium text-slate-200">{peek.roomName}</span>
+        <div className="mx-auto max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Odaya katıl</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            <span className="font-medium text-slate-800 dark:text-slate-200">{peek.roomName}</span>
             {' · '}
             {peek.participantCount}/{peek.maxParticipants} kişi
           </p>
           <label className="block text-sm">
-            <span className="text-slate-500">Görünen ad</span>
+            <span className="text-slate-600 dark:text-slate-500">Görünen ad</span>
             <input
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               value={joinName}
               onChange={(e) => setJoinName(e.target.value)}
               disabled={joinAnonymous}
               placeholder={joinAnonymous ? 'Anonim katılım' : 'Adınız'}
             />
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-300">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={joinAnonymous}
@@ -572,17 +597,19 @@ export const RoomPage = () => {
           </label>
           {peek.hasPassword && (
             <label className="block text-sm">
-              <span className="text-slate-500">Oda şifresi</span>
+              <span className="text-slate-600 dark:text-slate-500">Oda şifresi</span>
               <input
                 type="password"
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                 value={joinPassword}
                 onChange={(e) => setJoinPassword(e.target.value)}
                 autoComplete="off"
               />
             </label>
           )}
-          {joinError && <p className="text-sm text-amber-300">{joinError}</p>}
+          {joinError && (
+            <p className="text-sm text-amber-800 dark:text-amber-300">{joinError}</p>
+          )}
           <button
             type="button"
             onClick={handleJoin}
@@ -590,7 +617,7 @@ export const RoomPage = () => {
           >
             Katıl
           </button>
-          <Link to="/" className="block text-center text-sm text-brand-400">
+          <Link to="/" className="block text-center text-sm text-brand-700 dark:text-brand-400">
             Ana sayfa
           </Link>
         </div>
@@ -617,7 +644,7 @@ export const RoomPage = () => {
     <div className="min-h-full bg-gradient-to-b from-slate-100 via-slate-50 to-slate-100 px-3 py-8 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 sm:px-6">
       {banner && (
         <div
-          className="mx-auto mb-4 max-w-3xl rounded-lg border border-slate-700 bg-slate-900/80 px-4 py-2 text-center text-sm text-slate-200"
+          className="mx-auto mb-4 max-w-3xl rounded-lg border border-slate-200 bg-white/95 px-4 py-2 text-center text-sm text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:shadow-none"
           role="status"
         >
           {banner}
@@ -629,18 +656,24 @@ export const RoomPage = () => {
           <div className="flex flex-wrap items-start gap-4">
             <RoomQr url={inviteUrl} />
             <div>
-              <p className="text-xs uppercase tracking-widest text-brand-400">StudySprint</p>
-              <h1 className="text-xl font-semibold text-white sm:text-2xl">{room.roomName}</h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs uppercase tracking-widest text-brand-700 dark:text-brand-400">
+                StudySprint
+              </p>
+              <h1 className="text-xl font-semibold text-slate-900 dark:text-white sm:text-2xl">
+                {room.roomName}
+              </h1>
+              <p className="text-xs text-slate-600 dark:text-slate-500">
                 Kod:{' '}
-                <span className="font-mono text-base text-slate-200">{slug}</span> ·{' '}
+                <span className="font-mono text-base text-slate-800 dark:text-slate-200">{slug}</span> ·{' '}
                 {room.participants.length}/{room.maxParticipants} kişi
               </p>
               {profile && (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-500">
                   XP: {profile.xp} · Seri: {profile.streak} gün
                   {profile.badges.length > 0 && (
-                    <span className="ml-2 text-brand-300">Rozetler: {profile.badges.join(', ')}</span>
+                    <span className="ml-2 text-brand-700 dark:text-brand-300">
+                      Rozetler: {profile.badges.join(', ')}
+                    </span>
                   )}
                 </p>
               )}
@@ -649,7 +682,7 @@ export const RoomPage = () => {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 void navigator.clipboard.writeText(inviteUrl)
                 setBanner('Davet linki kopyalandı.')
@@ -660,7 +693,7 @@ export const RoomPage = () => {
             <Link
               to="/"
               data-no-leave-guard
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={(e) => {
                 e.preventDefault()
                 handleLeaveRoom()
@@ -684,11 +717,11 @@ export const RoomPage = () => {
 
         {room.phase === 'countdown' && (
           <div
-            className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border border-brand-500/30 bg-slate-900/60 p-8 text-center"
+            className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border border-brand-500/40 bg-white/95 p-8 text-center shadow-sm dark:border-brand-500/30 dark:bg-slate-900/60 dark:shadow-none"
             aria-live="assertive"
           >
-            <p className="text-sm text-brand-300">Hazır olun</p>
-            <p className="mt-4 text-7xl font-bold text-white tabular-nums">
+            <p className="text-sm font-medium text-brand-800 dark:text-brand-300">Hazır olun</p>
+            <p className="mt-4 text-7xl font-bold text-slate-900 tabular-nums dark:text-white">
               {room.countdownStep ?? '·'}
             </p>
             {isOwner && (
@@ -712,9 +745,11 @@ export const RoomPage = () => {
         )}
 
         {room.phase === 'debrief' && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <h2 className="text-lg font-semibold text-white">Ne kadar ilerledin?</h2>
-            <p className="mt-1 text-sm text-slate-400">
+          <div className="rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+              Ne kadar ilerledin?
+            </h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               Tamamladığın soru veya görev sayısını gir (hedef: {room.targetTasks}).
             </p>
             {!selfParticipant?.debriefSubmitted && (
@@ -722,17 +757,17 @@ export const RoomPage = () => {
                 <input
                   type="number"
                   min={0}
-                  className="w-32 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+                  className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                   value={debriefInput}
                   onChange={(e) => setDebriefInput(e.target.value)}
                   aria-label="Tamamlanan görev sayısı"
                 />
-                <label className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-200">
+                <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200">
                   <input
                     type="checkbox"
                     checked={debriefHideResults}
                     onChange={(e) => setDebriefHideResults(e.target.checked)}
-                    className="size-4 rounded border-slate-600"
+                    className="size-4 rounded border-slate-400 dark:border-slate-600"
                   />
                   Sonuçlarımı gizle
                 </label>
@@ -760,7 +795,7 @@ export const RoomPage = () => {
               </div>
             )}
             {debriefWaitingOthers && (
-              <p className="mt-4 text-sm text-slate-400" role="status">
+              <p className="mt-4 text-sm text-slate-600 dark:text-slate-400" role="status">
                 Diğer kullanıcıların da yanıtlaması bekleniyor…
               </p>
             )}
@@ -768,31 +803,42 @@ export const RoomPage = () => {
         )}
 
         {room.phase === 'results' && !results && (
-          <p className="text-center text-sm text-slate-400">Sonuçlar hesaplanıyor…</p>
+          <p className="text-center text-sm text-slate-600 dark:text-slate-400">
+            Sonuçlar hesaplanıyor…
+          </p>
         )}
 
         {room.phase === 'results' && results && (
-          <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-            <h2 className="text-xl font-semibold text-white">Liderlik tablosu</h2>
-            <p className="text-sm text-slate-400">
-              Grup ortalaması: <strong className="text-white">{results.averageCompleted}</strong> ·
+          <div className="space-y-6 rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none">
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+              Liderlik tablosu
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Grup ortalaması:{' '}
+              <strong className="text-slate-900 dark:text-white">{results.averageCompleted}</strong> ·
               Hedef: {results.targetTasks}
             </p>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Dikkat dağıtıcı işaretlerin:{' '}
-              <strong className="text-white">{selfDistractionCount}</strong>
+              <strong className="text-slate-900 dark:text-white">{selfDistractionCount}</strong>
             </p>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{ background: '#0f172a', border: '1px solid #334155' }}
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartPalette.grid} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: chartPalette.tick, fontSize: 11 }}
                   />
-                  <Bar dataKey="tamamlanan" fill="#22c55e" name="Tamamlanan" />
-                  <Bar dataKey="hedefYuzde" fill="#38bdf8" name="Hedef %" />
+                  <YAxis tick={{ fill: chartPalette.tick, fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: chartPalette.tooltipBg,
+                      border: `1px solid ${chartPalette.tooltipBorder}`,
+                    }}
+                  />
+                  <Bar dataKey="tamamlanan" fill="#16a34a" name="Tamamlanan" />
+                  <Bar dataKey="hedefYuzde" fill="#0284c7" name="Hedef %" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -800,19 +846,21 @@ export const RoomPage = () => {
               {sortedLeaderboard.map((h, idx) => (
                 <li
                   key={h.participantId}
-                  className="flex items-center justify-between rounded-lg border border-slate-800 px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
                 >
-                  <span className="text-slate-200">
+                  <span className="text-slate-800 dark:text-slate-200">
                     <span className="mr-2 font-mono text-xs text-slate-500">{idx + 1}.</span>
                     {h.displayLabel}
                     {h.isTop && (
-                      <span className="ml-2 text-xs text-amber-300">En verimli</span>
+                      <span className="ml-2 text-xs text-amber-700 dark:text-amber-300">
+                        En verimli
+                      </span>
                     )}
                     {h.isHidden && (
                       <span className="ml-2 text-xs text-slate-500">(gizli)</span>
                     )}
                   </span>
-                  <span className="tabular-nums text-slate-400">
+                  <span className="tabular-nums text-slate-600 dark:text-slate-400">
                     {h.isHidden ? 'Gizli' : `${h.completedTasks} · %${h.targetPercent}`}
                   </span>
                 </li>
@@ -820,7 +868,7 @@ export const RoomPage = () => {
             </ul>
             <Link
               to="/"
-              className="inline-flex w-full justify-center rounded-xl border border-brand-500/40 bg-brand-500/10 py-3 text-sm font-semibold text-brand-200 hover:bg-brand-500/20"
+              className="inline-flex w-full justify-center rounded-xl border border-brand-600/40 bg-brand-50 py-3 text-sm font-semibold text-brand-900 hover:bg-brand-100 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-200 dark:hover:bg-brand-500/20"
             >
               Yeniden başla — ana sayfa
             </Link>
@@ -857,40 +905,42 @@ const LobbySection = ({
       : []
 
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="text-lg font-semibold text-white">Bekleme odası</h2>
-      <p className="text-sm text-slate-400">
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Bekleme odası</h2>
+      <p className="text-sm text-slate-600 dark:text-slate-400">
         {room.requiresApproval ? (
           <>
             Katılımcılar önce kurucu onayı bekler. Onaydan sonra &quot;Hazırım&quot; diyerek hazır olur.
-            Herkes hazır olduğunda kurucu <strong className="text-slate-200">Başlat</strong> ile oturumu
+            Herkes hazır olduğunda kurucu{' '}
+            <strong className="text-slate-900 dark:text-slate-200">Başlat</strong> ile oturumu
             başlatır.
           </>
         ) : (
           <>
             Katılımcılar &quot;Hazırım&quot; dediğinde burada görünür. Herkes hazır olduğunda kurucu{' '}
-            <strong className="text-slate-200">Başlat</strong> ile oturumu başlatır.
+            <strong className="text-slate-900 dark:text-slate-200">Başlat</strong> ile oturumu
+            başlatır.
           </>
         )}
       </p>
-      <ul className="divide-y divide-slate-800 rounded-xl border border-slate-800">
+      <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
         {room.participants.map((p) => (
           <li key={p.id} className="flex items-center justify-between px-3 py-2 text-sm">
-            <span className="text-slate-200">
+            <span className="text-slate-800 dark:text-slate-200">
               {p.displayName}
               {p.id === room.ownerId && (
-                <span className="ml-2 text-xs text-brand-400">Kurucu</span>
+                <span className="ml-2 text-xs text-brand-700 dark:text-brand-400">Kurucu</span>
               )}
             </span>
             <span
               className={
                 p.status === 'ready'
-                  ? 'text-emerald-400'
+                  ? 'text-emerald-700 dark:text-emerald-400'
                   : p.status === 'pending'
-                    ? 'text-amber-300'
+                    ? 'text-amber-800 dark:text-amber-300'
                   : p.status === 'offline'
                     ? 'text-slate-500'
-                    : 'text-amber-300'
+                    : 'text-amber-800 dark:text-amber-300'
               }
             >
               {p.id === room.ownerId
@@ -908,9 +958,9 @@ const LobbySection = ({
       </ul>
 
       {isOwner && room.requiresApproval && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-          <p className="text-sm font-semibold text-white">Katılımcı izinleri</p>
-          <p className="mt-1 text-xs text-slate-500">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">Katılımcı izinleri</p>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-500">
             Onay verdiklerin oturumda Hazırım diyebilir.
           </p>
 
@@ -932,11 +982,11 @@ const LobbySection = ({
 
           <ul className="mt-3 space-y-1">
             {pendingParticipants.length === 0 ? (
-              <li className="text-sm text-slate-400">Onay bekleyen yok.</li>
+              <li className="text-sm text-slate-600 dark:text-slate-400">Onay bekleyen yok.</li>
             ) : (
               pendingParticipants.map((p) => (
                 <li key={p.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-300">{p.displayName}</span>
+                  <span className="text-slate-800 dark:text-slate-300">{p.displayName}</span>
                   <button
                     type="button"
                     className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
@@ -968,9 +1018,9 @@ const LobbySection = ({
             }}
             className={`rounded-xl px-4 py-2 text-sm font-semibold ${
               pendingApproval
-                ? 'border border-slate-700 bg-slate-800 text-slate-400'
+                ? 'border border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
                 : ready
-                  ? 'border border-slate-600 text-slate-200'
+                  ? 'border border-slate-300 text-slate-800 dark:border-slate-600 dark:text-slate-200'
                   : 'bg-brand-600 text-white hover:bg-brand-500'
             } disabled:opacity-90 disabled:cursor-not-allowed`}
           >
@@ -989,17 +1039,17 @@ const LobbySection = ({
         )}
       </div>
       {isOwner && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-          <p className="text-xs font-medium text-slate-500">Katılımcı çıkar</p>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+          <p className="text-xs font-medium text-slate-600 dark:text-slate-500">Katılımcı çıkar</p>
           <ul className="mt-2 space-y-1">
             {room.participants
               .filter((p) => p.id !== room.ownerId)
               .map((p) => (
                 <li key={p.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-300">{p.displayName}</span>
+                  <span className="text-slate-800 dark:text-slate-300">{p.displayName}</span>
                   <button
                     type="button"
-                    className="text-xs text-rose-300 hover:underline"
+                    className="text-xs text-rose-700 hover:underline dark:text-rose-300"
                     onClick={() =>
                       socket.emit('owner:kick', {
                         slug,
@@ -1035,7 +1085,7 @@ const OwnerBar = ({
       {(phase === 'sprint' || phase === 'countdown') && (
         <button
           type="button"
-          className="rounded-lg bg-rose-900/60 px-3 py-1.5 text-xs text-rose-100"
+          className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-900 dark:border-transparent dark:bg-rose-900/60 dark:text-rose-100"
           onClick={() => socket.emit('owner:forceEnd', { slug, ownerClientId })}
         >
           {phase === 'sprint' ? 'Seansı bitir' : 'Geri sayımı iptal'}
@@ -1044,7 +1094,7 @@ const OwnerBar = ({
       {phase === 'sprint' && (
         <button
           type="button"
-          className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-white"
+          className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs text-slate-800 dark:border-transparent dark:bg-slate-800 dark:text-white"
           onClick={() =>
             socket.emit('owner:extend', { slug, ownerClientId, extraMinutes: 5 })
           }
@@ -1083,9 +1133,9 @@ const SprintSection = ({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 text-center">
-        <p className="text-sm text-slate-400">Odak seansı</p>
-        <p className="mt-2 text-5xl font-bold tabular-nums text-white">
+      <div className="rounded-2xl border border-slate-200 bg-white/95 p-6 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none">
+        <p className="text-sm text-slate-600 dark:text-slate-400">Odak seansı</p>
+        <p className="mt-2 text-5xl font-bold tabular-nums text-slate-900 dark:text-white">
           {String(mm).padStart(2, '0')}:{String(ss).padStart(2, '0')}
         </p>
         {isOwner && (
@@ -1096,8 +1146,10 @@ const SprintSection = ({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-          <h3 className="text-sm font-semibold text-white">Odak müzikleri (yerel)</h3>
+        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+            Odak müzikleri (yerel)
+          </h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {(
               [
@@ -1115,7 +1167,7 @@ const SprintSection = ({
                 className={`rounded-lg px-3 py-1.5 text-xs ${
                   focusMode === mode
                     ? 'bg-brand-600 text-white'
-                    : 'bg-slate-800 text-slate-200'
+                    : 'border border-slate-200 bg-slate-100 text-slate-800 dark:border-transparent dark:bg-slate-800 dark:text-slate-200'
                 }`}
               >
                 {label}
@@ -1124,11 +1176,11 @@ const SprintSection = ({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-          <h3 className="text-sm font-semibold text-white">Odak koruyucu</h3>
+        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Odak koruyucu</h3>
           <button
             type="button"
-            className="mt-3 w-full rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
+            className="mt-3 w-full rounded-lg border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100"
             onClick={() =>
               socket.emit('session:distraction', {
                 slug,
@@ -1138,16 +1190,18 @@ const SprintSection = ({
           >
             Dikkatim dağıldı
           </button>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-slate-600 dark:text-slate-500">
             Bu oturumdaki işaretlerin sayısı seans sonunda görünür.
           </p>
         </div>
       </div>
 
-      <label className="block rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
-        <span className="text-sm font-semibold text-white">Notlar (yalnızca bu cihazda)</span>
+      <label className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+        <span className="text-sm font-semibold text-slate-900 dark:text-white">
+          Notlar (yalnızca bu cihazda)
+        </span>
         <textarea
-          className="mt-2 min-h-[100px] w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"
+          className="mt-2 min-h-[100px] w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           value={notes}
           onChange={(e) => onNotes(e.target.value)}
           placeholder="Kısa notlar…"
@@ -1155,17 +1209,19 @@ const SprintSection = ({
       </label>
 
       {isOwner && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-          <h3 className="text-sm font-semibold text-white">Katılımcı yönetimi</h3>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+            Katılımcı yönetimi
+          </h3>
           <ul className="mt-2 space-y-2">
             {room.participants
               .filter((p) => p.id !== room.ownerId)
               .map((p) => (
                 <li key={p.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-300">{p.displayName}</span>
+                  <span className="text-slate-800 dark:text-slate-300">{p.displayName}</span>
                   <button
                     type="button"
-                    className="text-xs text-rose-300 hover:underline"
+                    className="text-xs text-rose-700 hover:underline dark:text-rose-300"
                     onClick={() =>
                       socket.emit('owner:kick', {
                         slug,
@@ -1182,7 +1238,7 @@ const SprintSection = ({
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-800/80 bg-slate-900/30 p-3 text-xs text-slate-500">
+      <div className="rounded-xl border border-slate-200 bg-slate-100/80 p-3 text-xs text-slate-600 dark:border-slate-800/80 dark:bg-slate-900/30 dark:text-slate-500">
         <p>
           Dikkat dağıtıcı sayısı:{' '}
           {room.participants.find((x) => x.id === clientId)?.distractionCount ?? 0}

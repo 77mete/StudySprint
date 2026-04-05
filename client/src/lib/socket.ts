@@ -14,6 +14,7 @@ export const getSocket = (): Socket => {
     socket = io(origin || undefined, {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
+      withCredentials: true,
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 800,
