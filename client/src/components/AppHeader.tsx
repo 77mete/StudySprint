@@ -20,13 +20,13 @@ export const AppHeader = () => {
         <div className="hidden min-w-0 items-center gap-2 sm:flex">
           <Link
             to="/stats"
-            className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/60 dark:text-brand-200 dark:hover:bg-slate-800"
+            className="ss-btn-outline rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-900/60 dark:text-brand-200"
           >
             İstatistiklerim
           </Link>
           <Link
             to={goalsHref(token)}
-            className="rounded-xl border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
+            className="ss-btn-outline rounded-xl border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100"
           >
             Günlük hedef belirle
           </Link>
@@ -45,7 +45,7 @@ export const AppHeader = () => {
           <button
             type="button"
             onClick={() => toggleTheme()}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="ss-btn-ghost rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300"
             aria-label={theme === 'dark' ? 'Açık tema' : 'Koyu tema'}
           >
             {theme === 'dark' ? 'Açık mod' : 'Koyu mod'}
@@ -59,14 +59,14 @@ export const AppHeader = () => {
                   window.location.href = '/'
                 }
               }}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="ss-btn-ghost rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 dark:border-slate-700 dark:text-slate-200"
             >
               Çıkış
             </button>
           ) : (
             <Link
               to="/auth"
-              className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-900/20 transition hover:bg-brand-500"
+              className="ss-btn-primary rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-900/20 hover:bg-brand-500"
             >
               Giriş / Kayıt
             </Link>

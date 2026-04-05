@@ -385,7 +385,7 @@ export const AuthPage = () => {
                 type="button"
                 onClick={() => void handleChangePassword()}
                 disabled={busy}
-                className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="ss-btn-primary w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white shadow-md shadow-brand-900/25 disabled:opacity-50"
               >
                 {busy ? '…' : 'Şifreyi güncelle'}
               </button>
@@ -408,7 +408,7 @@ export const AuthPage = () => {
                 type="button"
                 onClick={() => void handleForgot()}
                 disabled={busy}
-                className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="ss-btn-primary w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white shadow-md shadow-brand-900/25 disabled:opacity-50"
               >
                 {busy ? '…' : 'Geçici şifre gönder'}
               </button>
@@ -492,7 +492,7 @@ export const AuthPage = () => {
                 type="button"
                 onClick={() => void handleSubmit()}
                 disabled={busy || (mode === 'register' && !allRegOk)}
-                className="mt-2 w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100"
+                className="ss-btn-primary mt-2 w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white shadow-md shadow-brand-900/25 disabled:opacity-50"
               >
                 {busy ? '…' : mode === 'login' ? 'Giriş yap' : 'Kayıt ol'}
               </button>

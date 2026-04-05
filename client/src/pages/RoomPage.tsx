@@ -63,6 +63,7 @@ export const RoomPage = () => {
   const [notes, setNotes] = useState('')
   const [debriefInput, setDebriefInput] = useState('')
   const [debriefHideResults, setDebriefHideResults] = useState(false)
+  const [debriefError, setDebriefError] = useState<string | null>(null)
   const [focusMode, setFocusModeState] = useState<FocusMode>('off')
   const [profile, setProfile] = useState<{ streak: number; badges: string[]; xp: number } | null>(
     null,
@@ -347,6 +348,10 @@ export const RoomPage = () => {
   }, [room?.phase])
 
   useEffect(() => {
+    if (room?.phase !== 'debrief') setDebriefError(null)
+  }, [room?.phase])
+
+  useEffect(() => {
     if (room?.phase === 'sprint') {
       awayMsRef.current = 0
       hiddenAtRef.current = null
@@ -613,7 +618,7 @@ export const RoomPage = () => {
           <button
             type="button"
             onClick={handleJoin}
-            className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white"
+            className="ss-btn-primary w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white shadow-md shadow-brand-900/25"
           >
             Katıl
           </button>
@@ -759,7 +764,10 @@ export const RoomPage = () => {
                   min={0}
                   className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                   value={debriefInput}
-                  onChange={(e) => setDebriefInput(e.target.value)}
+                  onChange={(e) => {
+                    setDebriefInput(e.target.value)
+                    setDebriefError(null)
+                  }}
                   aria-label="Tamamlanan görev sayısı"
                 />
                 <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200">
@@ -773,9 +781,23 @@ export const RoomPage = () => {
                 </label>
                 <button
                   type="button"
-                  className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
+                  className="ss-btn-primary rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-900/25 disabled:opacity-50"
                   onClick={() => {
-                    const n = Number(debriefInput)
+                    const raw = debriefInput.trim()
+                    if (raw === '') {
+                      setDebriefError('Tamamladığın soru veya görev sayısını girmeden ilerleyemezsin.')
+                      return
+                    }
+                    const n = Number(raw)
+                    if (!Number.isFinite(n) || n < 0) {
+                      setDebriefError('0 veya daha büyük geçerli bir sayı gir.')
+                      return
+                    }
+                    if (!Number.isInteger(n)) {
+                      setDebriefError('Lütfen tam sayı gir (ondalık kullanma).')
+                      return
+                    }
+                    setDebriefError(null)
                     if (hiddenAtRef.current != null) {
                       awayMsRef.current += Date.now() - hiddenAtRef.current
                       hiddenAtRef.current = null
@@ -783,7 +805,7 @@ export const RoomPage = () => {
                     getSocket().emit('debrief:submit', {
                       slug,
                       clientId,
-                      completedTasks: Number.isFinite(n) ? n : 0,
+                      completedTasks: n,
                       hideResults: debriefHideResults,
                       awaySeconds: Math.round(awayMsRef.current / 1000),
                       localHour: new Date().getHours(),
@@ -793,6 +815,11 @@ export const RoomPage = () => {
                   Gönder
                 </button>
               </div>
+            )}
+            {debriefError && (
+              <p className="mt-3 text-sm text-amber-800 dark:text-amber-300" role="alert">
+                {debriefError}
+              </p>
             )}
             {debriefWaitingOthers && (
               <p className="mt-4 text-sm text-slate-600 dark:text-slate-400" role="status">
@@ -868,7 +895,7 @@ export const RoomPage = () => {
             </ul>
             <Link
               to="/"
-              className="inline-flex w-full justify-center rounded-xl border border-brand-600/40 bg-brand-50 py-3 text-sm font-semibold text-brand-900 hover:bg-brand-100 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-200 dark:hover:bg-brand-500/20"
+              className="ss-btn-primary inline-flex w-full justify-center rounded-xl border border-brand-600/40 bg-brand-50 py-3 text-sm font-semibold text-brand-900 shadow-sm hover:bg-brand-100 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-200 dark:hover:bg-brand-500/20"
             >
               Yeniden başla — ana sayfa
             </Link>
@@ -967,7 +994,7 @@ const LobbySection = ({
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
+              className="ss-btn-primary rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-900/25 hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={pendingParticipants.length === 0}
               onClick={() =>
                 socket.emit('owner:approveAll', {
@@ -989,7 +1016,7 @@ const LobbySection = ({
                   <span className="text-slate-800 dark:text-slate-300">{p.displayName}</span>
                   <button
                     type="button"
-                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+                    className="ss-btn-primary rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500"
                     onClick={() =>
                       socket.emit('owner:approve', {
                         slug,
@@ -1020,8 +1047,8 @@ const LobbySection = ({
               pendingApproval
                 ? 'border border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
                 : ready
-                  ? 'border border-slate-300 text-slate-800 dark:border-slate-600 dark:text-slate-200'
-                  : 'bg-brand-600 text-white hover:bg-brand-500'
+                  ? 'ss-btn-outline border border-slate-300 text-slate-800 dark:border-slate-600 dark:text-slate-200'
+                  : 'ss-btn-primary bg-brand-600 text-white shadow-md shadow-brand-900/25 hover:bg-brand-500'
             } disabled:opacity-90 disabled:cursor-not-allowed`}
           >
             {pendingApproval ? 'Onay bekleniyor' : ready ? 'Hazır değilim' : 'Hazırım'}
@@ -1032,7 +1059,7 @@ const LobbySection = ({
             type="button"
             onClick={onOwnerStart}
             disabled={!room.canOwnerStart}
-            className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="ss-btn-primary rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-900/25 hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Başlat
           </button>
@@ -1085,7 +1112,7 @@ const OwnerBar = ({
       {(phase === 'sprint' || phase === 'countdown') && (
         <button
           type="button"
-          className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-900 dark:border-transparent dark:bg-rose-900/60 dark:text-rose-100"
+          className="ss-btn-ghost rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-900 hover:bg-rose-100 dark:border-transparent dark:bg-rose-900/60 dark:text-rose-100 dark:hover:bg-rose-900/80"
           onClick={() => socket.emit('owner:forceEnd', { slug, ownerClientId })}
         >
           {phase === 'sprint' ? 'Seansı bitir' : 'Geri sayımı iptal'}
@@ -1094,7 +1121,7 @@ const OwnerBar = ({
       {phase === 'sprint' && (
         <button
           type="button"
-          className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs text-slate-800 dark:border-transparent dark:bg-slate-800 dark:text-white"
+          className="ss-btn-ghost rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-200 dark:border-transparent dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
           onClick={() =>
             socket.emit('owner:extend', { slug, ownerClientId, extraMinutes: 5 })
           }
@@ -1164,10 +1191,10 @@ const SprintSection = ({
                 key={mode}
                 type="button"
                 onClick={() => void onFocusMode(mode)}
-                className={`rounded-lg px-3 py-1.5 text-xs ${
+                className={`rounded-lg px-3 py-1.5 text-xs transition-all duration-200 ${
                   focusMode === mode
-                    ? 'bg-brand-600 text-white'
-                    : 'border border-slate-200 bg-slate-100 text-slate-800 dark:border-transparent dark:bg-slate-800 dark:text-slate-200'
+                    ? 'ss-btn-primary bg-brand-600 text-white shadow-sm'
+                    : 'border border-slate-200 bg-slate-100 text-slate-800 hover:border-brand-400/40 hover:bg-brand-50 dark:border-transparent dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
                 {label}
@@ -1180,7 +1207,7 @@ const SprintSection = ({
           <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Odak koruyucu</h3>
           <button
             type="button"
-            className="mt-3 w-full rounded-lg border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100"
+            className="ss-btn-outline mt-3 w-full rounded-lg border border-amber-500/50 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100"
             onClick={() =>
               socket.emit('session:distraction', {
                 slug,

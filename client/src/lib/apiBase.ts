@@ -1,3 +1,5 @@
+import { getAuthToken } from './authToken'
+
 /**
  * Üretimde tam kök URL (örn. https://api-xxx.up.railway.app).
  * Boşsa aynı origin: Vite dev proxy veya barındırıcıdaki /api yönlendirmesi.
@@ -30,11 +32,20 @@ export const apiUrl = (path: string): string => {
   return base ? `${base}${p}` : p
 }
 
-/** Cross-origin (Vercel → Railway) isteklerde çerez / CORS uyumu için credentials sabit. */
+/**
+ * Tüm API çağrıları: credentials + localStorage JWT otomatik `Authorization: Bearer`.
+ * İstek başına `X-Client-Id` vb. eklemek için init.headers ile birleştirin; Bearer yoksa eklenir.
+ */
 export const apiFetch = (path: string, init: RequestInit = {}): Promise<Response> => {
   const url = apiUrl(path)
+  const headers = new Headers(init.headers as HeadersInit | undefined)
+  const token = getAuthToken()
+  if (token && !headers.get('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
   return fetch(url, {
     ...init,
     credentials: 'include',
+    headers,
   })
 }

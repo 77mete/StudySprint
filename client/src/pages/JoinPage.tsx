@@ -63,7 +63,7 @@ export const JoinPage = () => {
           type="button"
           onClick={handleJoin}
           disabled={busy}
-          className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white hover:bg-brand-500 disabled:opacity-50"
+          className="ss-btn-primary w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white shadow-md shadow-brand-900/25 hover:bg-brand-500 disabled:opacity-50"
         >
           {busy ? 'Kontrol ediliyor…' : 'Devam et'}
         </button>
@@ -73,7 +73,7 @@ export const JoinPage = () => {
             <button
               type="button"
               onClick={() => setShowQr(true)}
-              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100 dark:hover:bg-slate-900/60"
+              className="ss-btn-outline mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
             >
               QR ile oda kodu okut
             </button>

@@ -1,4 +1,4 @@
-import type { Express } from 'express'
+import type { Express, Request } from 'express'
 import { getPrisma } from './db.js'
 import {
   generateTempPassword,
@@ -20,10 +20,12 @@ const dayKey = () => {
   return d.toISOString().slice(0, 10)
 }
 
-const parseBearer = (req: { headers: Record<string, string | string[] | undefined> }) => {
-  const h = req.headers.authorization
-  if (typeof h !== 'string' || !h.startsWith('Bearer ')) return null
-  return h.slice(7).trim()
+/** Express req.get büyük/küçük harf duyarsız; Bearer zorunlu. */
+const parseBearer = (req: Request) => {
+  const h = req.get('authorization')
+  if (!h || !h.startsWith('Bearer ')) return null
+  const token = h.slice(7).trim()
+  return token.length > 0 ? token : null
 }
 
 export const registerApiRoutes = (app: Express) => {

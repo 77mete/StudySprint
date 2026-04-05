@@ -124,7 +124,7 @@ export const HomePage = () => {
     try {
       const r = await apiFetch('/api/goals', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
       const d = await r.json().catch(() => ({}))
@@ -236,7 +236,7 @@ export const HomePage = () => {
               <button
                 type="button"
                 onClick={openGoalModal}
-                className="rounded-xl border border-amber-500/50 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
+                className="ss-btn-outline rounded-xl border border-amber-500/50 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
               >
                 Günlük hedef belirle
               </button>
@@ -379,7 +379,7 @@ export const HomePage = () => {
               type="button"
               onClick={handleSubmit}
               disabled={busy}
-              className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-900/40 transition hover:bg-brand-500 disabled:opacity-50"
+              className="ss-btn-primary w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-900/40 hover:bg-brand-500 disabled:opacity-50"
             >
               {busy ? 'Oluşturuluyor…' : 'Oda oluştur'}
             </button>
@@ -433,14 +433,14 @@ export const HomePage = () => {
                 <button
                   type="button"
                   onClick={() => setShowGoalModal(false)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 dark:border-slate-600 dark:text-slate-300"
+                  className="ss-btn-ghost rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 dark:border-slate-600 dark:text-slate-300"
                 >
                   İptal
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleSaveGoals()}
-                  className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
+                  className="ss-btn-primary rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-900/25"
                 >
                   Kaydet
                 </button>

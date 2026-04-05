@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
 import { apiFetch } from '../lib/apiBase'
-import { getAuthToken } from '../lib/authToken'
 
 type Analytics = {
   ok: boolean
@@ -32,11 +31,8 @@ export const StatsPage = () => {
   const prevXpRef = useRef<number | null>(null)
 
   const load = useCallback(async () => {
-    const token = getAuthToken()
-    const headers: Record<string, string> = {}
-    if (token) headers.Authorization = `Bearer ${token}`
     try {
-      const r = await apiFetch('/api/analytics/full', { headers })
+      const r = await apiFetch('/api/analytics/full')
       const j = (await r.json()) as Analytics
       if (!r.ok || !j.ok) {
         setErr('Veriler yüklenemedi. Oturumunuzu kontrol edin.')
