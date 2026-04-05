@@ -318,7 +318,7 @@ export const AuthPage = () => {
                       type="checkbox"
                       checked={showCurrentPassword}
                       onChange={(e) => setShowCurrentPassword(e.target.checked)}
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900"
+                      className="ss-checkbox"
                     />
                     Göster
                   </label>
@@ -339,7 +339,7 @@ export const AuthPage = () => {
                       type="checkbox"
                       checked={showNewPassword}
                       onChange={(e) => setShowNewPassword(e.target.checked)}
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900"
+                      className="ss-checkbox"
                     />
                     Göster
                   </label>
@@ -374,7 +374,7 @@ export const AuthPage = () => {
                       type="checkbox"
                       checked={showNewPassword2}
                       onChange={(e) => setShowNewPassword2(e.target.checked)}
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900"
+                      className="ss-checkbox"
                     />
                     Göster
                   </label>
@@ -453,7 +453,7 @@ export const AuthPage = () => {
                       type="checkbox"
                       checked={showPassword}
                       onChange={(e) => setShowPassword(e.target.checked)}
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900"
+                      className="ss-checkbox"
                     />
                     Göster
                   </label>

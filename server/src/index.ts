@@ -242,5 +242,5 @@ io.on('connection', (socket) => {
 })
 
 httpServer.listen(PORT, () => {
-  console.log(`[server] http://localhost:${PORT} · CORS: ${CLIENT_ORIGINS.join(', ')}`)
+  console.log(`[server] http://localhost:${PORT} · CORS: ${ALLOWED_ORIGINS.join(', ')}`)
 })

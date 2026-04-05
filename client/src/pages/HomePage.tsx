@@ -311,7 +311,7 @@ export const HomePage = () => {
                   setIsAnonymous(e.target.checked)
                   if (e.target.checked) setDisplayName('')
                 }}
-                className="size-4 rounded border-slate-400 dark:border-slate-600"
+                className="ss-checkbox"
               />
               Anonim katıl (isim gizli, benzersiz takma ad atanır)
             </label>
@@ -321,7 +321,7 @@ export const HomePage = () => {
                 type="checkbox"
                 checked={requiresApproval}
                 onChange={(e) => setRequiresApproval(e.target.checked)}
-                className="size-4 rounded border-slate-400 dark:border-slate-600"
+                className="ss-checkbox"
               />
               Katılımcılar için kurucu onayı (bekleme odası)
             </label>

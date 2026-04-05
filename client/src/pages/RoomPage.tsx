@@ -592,6 +592,7 @@ export const RoomPage = () => {
           <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
             <input
               type="checkbox"
+              className="ss-checkbox"
               checked={joinAnonymous}
               onChange={(e) => {
                 setJoinAnonymous(e.target.checked)
@@ -687,7 +688,7 @@ export const RoomPage = () => {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="ss-btn-ghost rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300"
               onClick={() => {
                 void navigator.clipboard.writeText(inviteUrl)
                 setBanner('Davet linki kopyalandı.')
@@ -698,7 +699,7 @@ export const RoomPage = () => {
             <Link
               to="/"
               data-no-leave-guard
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="ss-btn-ghost rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300"
               onClick={(e) => {
                 e.preventDefault()
                 handleLeaveRoom()
@@ -775,7 +776,7 @@ export const RoomPage = () => {
                     type="checkbox"
                     checked={debriefHideResults}
                     onChange={(e) => setDebriefHideResults(e.target.checked)}
-                    className="size-4 rounded border-slate-400 dark:border-slate-600"
+                    className="ss-checkbox"
                   />
                   Sonuçlarımı gizle
                 </label>
