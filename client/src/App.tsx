@@ -1,17 +1,25 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
+import { RootLayout } from './components/RootLayout'
 import { HomePage } from './pages/HomePage'
 import { JoinPage } from './pages/JoinPage'
 import { RoomPage } from './pages/RoomPage'
 
-export const App = () => {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/join" element={<JoinPage />} />
-        <Route path="/room/:slug" element={<RoomPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
-  )
-}
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: (
+      <AppErrorBoundary>
+        <RootLayout />
+      </AppErrorBoundary>
+    ),
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: 'join', element: <JoinPage /> },
+      { path: 'room/:slug', element: <RoomPage /> },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+])
+
+export const App = () => <RouterProvider router={router} />

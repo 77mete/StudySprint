@@ -1,6 +1,6 @@
 import type { PublicRoomState, RoomPeekResponse, SessionResultsPayload } from '../shared'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -21,6 +21,9 @@ import { getSocket } from '../lib/socket'
 
 const joinKey = (slug: string) => `studysprint_joined_${slug}`
 const resultsKey = (slug: string) => `studysprint_results_${slug}`
+
+const LEAVE_SESSION_CONFIRM =
+  'Seans devam ediyor. Odadan cikmak istediginize emin misiniz?'
 
 type PeekOk = {
   roomName: string
@@ -57,27 +60,95 @@ export const RoomPage = () => {
 
   const prevPhase = useRef<string | null>(null)
   const prevCountdownStep = useRef<number | null>(null)
+  /** Geri tuşu için tek seferlik history katmanı (useBlocker mobilde güvenilir olmayabiliyor) */
+  const backGuardPushedRef = useRef(false)
 
   const inActiveSession = Boolean(
     room &&
       (room.phase === 'countdown' || room.phase === 'sprint' || room.phase === 'debrief'),
   )
 
-  const leaveBlocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      joined &&
-      inActiveSession &&
-      currentLocation.pathname !== nextLocation.pathname,
-  )
-
+  /** Oturum devam ederken geri tuşu: önce onay; iptal edilirse sayfada kal */
   useEffect(() => {
-    if (leaveBlocker.state !== 'blocked') return
-    const ok = window.confirm(
-      'Seans devam ediyor. Odadan cikmak istediginize emin misiniz?',
-    )
-    if (ok) leaveBlocker.proceed()
-    else leaveBlocker.reset()
-  }, [leaveBlocker])
+    if (!joined || !inActiveSession) {
+      backGuardPushedRef.current = false
+      return
+    }
+    if (!backGuardPushedRef.current) {
+      window.history.pushState({ studySprintRoomGuard: true }, '', window.location.href)
+      backGuardPushedRef.current = true
+    }
+    const onPopState = () => {
+      const ok = window.confirm(LEAVE_SESSION_CONFIRM)
+      if (ok) {
+        backGuardPushedRef.current = false
+        void setFocusMode('off')
+        setFocusModeState('off')
+        try {
+          sessionStorage.removeItem(joinKey(slug))
+        } catch {
+          // yoksay
+        }
+        navigate('/', { replace: true })
+      } else {
+        window.history.pushState({ studySprintRoomGuard: true }, '', window.location.href)
+      }
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+    }
+  }, [joined, inActiveSession, slug, navigate])
+
+  /** Oturum devam ederken footer vb. iç linkler: geri tuşuyla aynı onay */
+  useEffect(() => {
+    if (!joined || !inActiveSession) return
+    const onCaptureClick = (e: MouseEvent) => {
+      const raw = (e.target as HTMLElement | null)?.closest?.('a[href]') as
+        | HTMLAnchorElement
+        | null
+        | undefined
+      if (!raw || raw.closest('[data-no-leave-guard]')) return
+      if (raw.target === '_blank' || raw.getAttribute('download')) return
+      let url: URL
+      try {
+        url = new URL(raw.href, window.location.href)
+      } catch {
+        return
+      }
+      if (url.origin !== window.location.origin) return
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search &&
+        url.hash === window.location.hash
+      ) {
+        return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+      const ok = window.confirm(LEAVE_SESSION_CONFIRM)
+      if (!ok) return
+      void setFocusMode('off')
+      setFocusModeState('off')
+      try {
+        sessionStorage.removeItem(joinKey(slug))
+      } catch {
+        // yoksay
+      }
+      navigate(`${url.pathname}${url.search}${url.hash}`)
+    }
+    document.addEventListener('click', onCaptureClick, true)
+    return () => document.removeEventListener('click', onCaptureClick, true)
+  }, [joined, inActiveSession, slug, navigate])
+
+  /** bfcache ile geri gelince odak sesi sürerse kapat */
+  useEffect(() => {
+    const onPageShow = (ev: PageTransitionEvent) => {
+      if (ev.persisted) void setFocusMode('off')
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [])
 
   useEffect(() => {
     setRoom(null)
@@ -211,12 +282,6 @@ export const RoomPage = () => {
       socket.off('room:closed', onClosed)
       void setFocusMode('off')
       socket.emit('room:leave')
-      // Kullanıcı sayfayı terk ederse bu odadaki joined durumunu temizle.
-      try {
-        sessionStorage.removeItem(joinKey(slug))
-      } catch {
-        // yoksay
-      }
     }
   }, [slug, clientId, joined, navigate])
 
@@ -243,6 +308,13 @@ export const RoomPage = () => {
     }
     prevPhase.current = room.phase
   }, [room])
+
+  useEffect(() => {
+    if (room?.phase === 'results') {
+      void setFocusMode('off')
+      setFocusModeState('off')
+    }
+  }, [room?.phase])
 
   useEffect(() => {
     if (!room || room.phase !== 'countdown' || room.countdownStep == null) {
@@ -348,13 +420,16 @@ export const RoomPage = () => {
     const active =
       room?.phase === 'countdown' || room?.phase === 'sprint' || room?.phase === 'debrief'
     if (active) {
-      const ok = window.confirm(
-        'Seans devam ediyor. Odadan cikmak istediginize emin misiniz?',
-      )
+      const ok = window.confirm(LEAVE_SESSION_CONFIRM)
       if (!ok) return
     }
     void setFocusMode('off')
     setFocusModeState('off')
+    try {
+      sessionStorage.removeItem(joinKey(slug))
+    } catch {
+      // yoksay
+    }
     navigate('/')
   }
 
@@ -539,6 +614,7 @@ export const RoomPage = () => {
             </button>
             <Link
               to="/"
+              data-no-leave-guard
               className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
               onClick={(e) => {
                 e.preventDefault()

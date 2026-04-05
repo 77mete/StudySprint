@@ -116,6 +116,22 @@ const playFileFocus = async (url: string): Promise<{ ok: boolean; reason?: strin
   a.load()
   audio = a
 
+  await new Promise<void>((resolve) => {
+    const ms = 10000
+    const timer = window.setTimeout(resolve, ms)
+    const done = () => {
+      window.clearTimeout(timer)
+      resolve()
+    }
+    if (a.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      window.clearTimeout(timer)
+      resolve()
+      return
+    }
+    a.addEventListener('canplaythrough', done, { once: true })
+    a.addEventListener('error', done, { once: true })
+  })
+
   try {
     a.currentTime = 0
     const p = a.play()
