@@ -38,9 +38,11 @@ const ALLOWED_ORIGINS = [...new Set([...DEFAULT_ORIGINS, ...parseClientOrigins()
 /** Tarayıcıdan gelen Origin başlığını kabul et (CORS + Socket.IO). * kullanılmaz. */
 const isClientOriginAllowed = (origin: string | undefined): boolean => {
   if (origin === undefined || origin === '') return true
-  if (ALLOWED_ORIGINS.includes(origin)) return true
+  const o = origin.trim()
+  if (o === '') return true
+  if (ALLOWED_ORIGINS.includes(o)) return true
   try {
-    const u = new URL(origin)
+    const u = new URL(o)
     if (u.protocol === 'https:' && u.hostname.endsWith('.vercel.app')) return true
     if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') return true
   } catch {
@@ -49,14 +51,25 @@ const isClientOriginAllowed = (origin: string | undefined): boolean => {
   return false
 }
 
+const corsAllowedHeaders = [
+  'Content-Type',
+  'Authorization',
+  'X-Client-Id',
+  'Accept',
+  'X-Requested-With',
+  'Cache-Control',
+]
+
 const corsDynamicOptions: CorsOptions = {
   origin: (origin, cb) => {
     cb(null, isClientOriginAllowed(origin))
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Id'],
+  allowedHeaders: corsAllowedHeaders,
   optionsSuccessStatus: 204,
+  maxAge: 86_400,
+  preflightContinue: false,
 }
 
 const app = express()
@@ -69,19 +82,24 @@ const io = new Server(httpServer, {
     origin: (origin, cb) => {
       cb(null, isClientOriginAllowed(origin))
     },
-    methods: ['GET', 'POST'],
+    /** Polling transport preflight + POST için OPTIONS şart (yalnızca GET/POST yetmez). */
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: corsAllowedHeaders,
     credentials: true,
   },
 })
 
-app.use(express.json({ limit: '32kb' }))
+/** CORS önce: OPTIONS + credentialed cross-origin için doğru sıra. */
 app.use(cors(corsDynamicOptions))
+app.use(express.json({ limit: '32kb' }))
 
 const apiLimiter = rateLimit({
   windowMs: 60_000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  /** Preflight asla limite takılmasın; yanıtta ACAO olmayınca tarayıcı "CORS hatası" gösterir. */
+  skip: (req) => req.method === 'OPTIONS',
 })
 
 app.use('/api', apiLimiter)
