@@ -44,21 +44,21 @@ export const JoinPage = () => {
   )
 
   return (
-    <div className="min-h-full bg-slate-950 px-4 py-16">
+    <div className="min-h-full bg-gradient-to-b from-slate-100 to-slate-50 px-4 py-16 dark:from-slate-950 dark:to-slate-900">
       <div className="mx-auto max-w-md space-y-6 text-center">
-        <h1 className="text-2xl font-semibold text-white">Odaya katıl</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Odaya katıl</h1>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           Önce oda kodunu doğrulayın; şifre gerekiyorsa bir sonraki ekranda sorulur.
         </p>
         <input
-          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-center text-sm text-white outline-none ring-brand-500/40 focus:ring-2"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-sm text-slate-900 outline-none ring-brand-500/40 focus:ring-2 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           placeholder="ör. abcde12345"
           value={code}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
           aria-label="Oda kodu"
         />
-        {error && <p className="text-sm text-amber-300">{error}</p>}
+        {error && <p className="text-sm text-amber-700 dark:text-amber-300">{error}</p>}
         <button
           type="button"
           onClick={handleJoin}
@@ -73,18 +73,18 @@ export const JoinPage = () => {
             <button
               type="button"
               onClick={() => setShowQr(true)}
-              className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 text-sm font-semibold text-slate-100 hover:bg-slate-900/60"
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100 dark:hover:bg-slate-900/60"
             >
               QR ile oda kodu okut
             </button>
           ) : (
-            <div className="mt-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+            <div className="mt-2 rounded-2xl border border-slate-200 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-900/50">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-left text-sm font-semibold text-white">QR tarayıcı</p>
+                <p className="text-left text-sm font-semibold text-slate-900 dark:text-white">QR tarayıcı</p>
                 <button
                   type="button"
                   onClick={() => setShowQr(false)}
-                  className="rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-900/60"
+                  className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-900/60"
                 >
                   Kapat
                 </button>
@@ -96,7 +96,7 @@ export const JoinPage = () => {
           )}
         </div>
 
-        <Link to="/" className="block text-sm text-brand-400 hover:text-brand-300">
+        <Link to="/" className="block text-sm text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300">
           Ana sayfa
         </Link>
       </div>

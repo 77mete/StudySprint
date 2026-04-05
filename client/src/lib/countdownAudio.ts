@@ -1,6 +1,6 @@
 /**
  * Geri sayım: kullanıcı etkileşimi sonrası AudioContext açılır (tarayıcı politikası).
- * Her adımda yüksek, net, art arda 3 "bip" çalar.
+ * Web Audio ile tek dizide 3 kısa bip (bip-bip-bip); tekrar/loop yok.
  */
 
 let ctx: AudioContext | null = null
@@ -34,7 +34,7 @@ const playBeep = (startTime: number, freq: number, duration: number, gain: numbe
   o.stop(startTime + duration)
 }
 
-/** Tek adım için 3 kısa bip (yüksek ses) */
+/** Tek sefer: 3 kısa bip */
 export const playCountdownBurst = () => {
   if (!ctx || ctx.state === 'suspended') {
     primeCountdownAudio()

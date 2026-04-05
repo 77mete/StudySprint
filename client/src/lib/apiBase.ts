@@ -1,4 +1,4 @@
-/** Üretimde Socket.io + REST'in çalışması için Node sunucusunun kök URL'i (örn. https://api-xxx.up.railway.app). Boş bırakılırsa aynı origin + Vite proxy kullanılır. */
+/** Üretimde HTTPS kök URL (örn. https://api-xxx.up.railway.app). Boşsa aynı origin + Vite proxy. */
 export const getBackendOrigin = (): string => {
   const raw = import.meta.env.VITE_BACKEND_URL
   if (typeof raw !== 'string') return ''

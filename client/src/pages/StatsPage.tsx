@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useToast } from '../context/ToastContext'
 import { apiUrl } from '../lib/apiBase'
 import { getAuthToken } from '../lib/authToken'
-import { getOrCreateClientId } from '../lib/clientId'
 
 type Analytics = {
   ok: boolean
@@ -21,34 +21,40 @@ type Analytics = {
   awaySecondsTotal?: number
   inactivityScorePercent?: number
   heatmap?: { date: string; minutes: number }[]
+  todayMinutes?: number
+  todayTasks?: number
 }
 
 export const StatsPage = () => {
-  const clientId = useMemo(() => getOrCreateClientId(), [])
+  const { pushToast } = useToast()
   const [data, setData] = useState<Analytics | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const prevXpRef = useRef<number | null>(null)
 
   const load = useCallback(async () => {
     const token = getAuthToken()
-    const url = token
-      ? apiUrl('/api/analytics/full')
-      : apiUrl(`/api/analytics/full?clientId=${encodeURIComponent(clientId)}`)
+    const url = apiUrl('/api/analytics/full')
     const headers: Record<string, string> = {}
     if (token) headers.Authorization = `Bearer ${token}`
-    else headers['X-Client-Id'] = clientId
     try {
       const r = await fetch(url, { headers })
       const j = (await r.json()) as Analytics
-      if (!j.ok) {
-        setErr('Veriler yüklenemedi.')
+      if (!r.ok || !j.ok) {
+        setErr('Veriler yüklenemedi. Oturumunuzu kontrol edin.')
         return
       }
+      const prev = prevXpRef.current
+      const nextXp = j.xp ?? 0
+      if (prev !== null && nextXp > prev) {
+        pushToast(`+${nextXp - prev} XP kazandın!`, 'success')
+      }
+      prevXpRef.current = nextXp
       setData(j)
       setErr(null)
     } catch {
-      setErr('Bağlantı hatası.')
+      setErr('Bağlantı hatası. HTTPS API adresini ve ağınızı kontrol edin.')
     }
-  }, [clientId])
+  }, [pushToast])
 
   useEffect(() => {
     void load()
@@ -59,29 +65,29 @@ export const StatsPage = () => {
     return Math.max(1, ...hm.map((x) => x.minutes))
   }, [data?.heatmap])
 
+  const roomsTotal = (data?.roomsCreated ?? 0) + (data?.roomsJoined ?? 0)
+
   return (
-    <div className="min-h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-10 sm:px-6">
+    <div className="min-h-full bg-gradient-to-b from-slate-100 via-slate-50 to-slate-100 px-4 py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 sm:px-6">
       <div className="mx-auto max-w-3xl space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-widest text-brand-400">StudySprint</p>
-            <h1 className="text-2xl font-semibold text-white">İstatistiklerim / Analizlerim</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {data?.identity === 'guest'
-                ? 'Misafir modu — kayıt olunca veriler tüm cihazlarda senkronize olur.'
-                : 'Hesabın bağlı — veriler sunucuda saklanıyor.'}
+            <p className="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400">StudySprint</p>
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">İstatistiklerim</h1>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-500">
+              Günlük çalışma, odalar ve odak metrikleri — yalnızca hesabınıza bağlı veriler.
             </p>
           </div>
           <Link
             to="/"
-            className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+            className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Ana sayfa
           </Link>
         </div>
 
         {err && (
-          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
+          <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
             {err}
           </p>
         )}
@@ -89,64 +95,66 @@ export const StatsPage = () => {
         {data && (
           <>
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <StatCard label="XP" value={String(data.xp ?? 0)} />
-              <StatCard label="Seri (gün)" value={String(data.streakDays ?? 0)} />
+              <StatCard label="Bugünkü çalışma süresi" value={`${data.todayMinutes ?? 0} dk`} />
+              <StatCard label="Katıldığın / oluşturduğun oda (toplam)" value={String(roomsTotal)} />
+              <StatCard label="Çözülen toplam soru / görev" value={String(data.totalTasksSolved ?? 0)} />
+              <StatCard label="En verimli saat (yerel)" value={data.productiveHourLabel ?? '—'} />
               <StatCard
-                label="Toplam çalışma"
-                value={`${data.totalMinutesStudied ?? 0} dk`}
+                label="Odalarda ortalama süre"
+                value={`${data.avgMinutesPerSession ?? 0} dk / oturum`}
               />
-              <StatCard label="Çözülen soru / görev" value={String(data.totalTasksSolved ?? 0)} />
+              <StatCard label="Dikkat dağılımı (odadaki kayıt)" value={String(data.distractionScore ?? 0)} />
+              <StatCard
+                label="XP"
+                value={String(data.xp ?? 0)}
+                valueClassName="ss-xp-pop"
+                valueKey={data.xp ?? 0}
+              />
+              <StatCard label="Seri (gün)" value={String(data.streakDays ?? 0)} />
+              <StatCard label="Toplam çalışma (tüm zamanlar)" value={`${data.totalMinutesStudied ?? 0} dk`} />
               <StatCard label="Oluşturulan oda" value={String(data.roomsCreated ?? 0)} />
               <StatCard label="Katılınan oda" value={String(data.roomsJoined ?? 0)} />
-              <StatCard
-                label="En verimli saat (yerel)"
-                value={data.productiveHourLabel ?? '—'}
-              />
-              <StatCard
-                label="Oturum başına ort. süre"
-                value={`${data.avgMinutesPerSession ?? 0} dk`}
-              />
-              <StatCard
-                label="Dikkat işareti (tıklama)"
-                value={String(data.distractionScore ?? 0)}
-              />
               <StatCard
                 label="Sekme dışı süre (toplam)"
                 value={`${Math.round((data.awaySecondsTotal ?? 0) / 60)} dk`}
               />
               <StatCard
-                label="İnaktivite skoru (tahmini)"
+                label="İnaktivite tahmini"
                 value={`%${data.inactivityScorePercent ?? 0}`}
               />
             </section>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-              <h2 className="text-lg font-semibold text-white">Günlük görevler &amp; rozetler</h2>
+            <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 dark:border-slate-800 dark:bg-slate-900/50">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Günlük görevler &amp; rozetler</h2>
               <ul className="mt-4 space-y-2">
                 {(data.tasks ?? []).map((t) => (
                   <li
                     key={t.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-800 px-3 py-2 text-sm"
+                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                      t.done
+                        ? 'border-emerald-500/40 bg-emerald-50/80 dark:bg-emerald-950/30'
+                        : 'border-slate-200 dark:border-slate-800'
+                    }`}
                   >
-                    <span className={t.done ? 'text-emerald-300' : 'text-slate-300'}>
+                    <span className={t.done ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'}>
                       {t.done ? '✓ ' : '○ '}
                       {t.label}
                     </span>
-                    <span className="text-xs text-brand-300">+{t.xp} XP</span>
+                    <span className="text-xs text-brand-600 dark:text-brand-300">+{t.xp} XP</span>
                   </li>
                 ))}
               </ul>
               {data.badges && data.badges.length > 0 && (
-                <p className="mt-4 text-sm text-slate-400">
+                <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
                   Rozetler:{' '}
-                  <span className="text-brand-300">{data.badges.join(', ')}</span>
+                  <span className="text-brand-600 dark:text-brand-300">{data.badges.join(', ')}</span>
                 </p>
               )}
             </section>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-              <h2 className="text-lg font-semibold text-white">Çalışma takvimi (son 365 gün)</h2>
-              <p className="mt-1 text-xs text-slate-500">
+            <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 dark:border-slate-800 dark:bg-slate-900/50">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Çalışma takvimi (son 365 gün)</h2>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-500">
                 Koyu renk = daha çok dakika (oda oturumları toplamı).
               </p>
               <div className="mt-4 max-w-full overflow-x-auto pb-2">
@@ -157,7 +165,7 @@ export const StatsPage = () => {
                     <div
                       key={cell.date}
                       title={`${cell.date}: ${cell.minutes} dk`}
-                      className="size-2.5 rounded-sm bg-slate-800 sm:size-3"
+                      className="size-2.5 rounded-sm bg-slate-200 sm:size-3 dark:bg-slate-800"
                       style={{
                         backgroundColor:
                           cell.minutes <= 0
@@ -177,9 +185,24 @@ export const StatsPage = () => {
   )
 }
 
-const StatCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3">
-    <p className="text-xs text-slate-500">{label}</p>
-    <p className="mt-1 text-lg font-semibold text-white">{value}</p>
+const StatCard = ({
+  label,
+  value,
+  valueClassName,
+  valueKey,
+}: {
+  label: string
+  value: string
+  valueClassName?: string
+  valueKey?: string | number
+}) => (
+  <div className="rounded-xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/40">
+    <p className="text-xs text-slate-600 dark:text-slate-500">{label}</p>
+    <p
+      key={valueKey}
+      className={`mt-1 text-lg font-semibold text-slate-900 dark:text-white ${valueClassName ?? ''}`}
+    >
+      {value}
+    </p>
   </div>
 )

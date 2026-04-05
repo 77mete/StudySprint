@@ -9,7 +9,26 @@ body,
 }
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  @apply bg-slate-100 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+}
+
+@keyframes ss-pop {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.8;
+  }
+  40% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.ss-xp-pop {
+  animation: ss-pop 0.45s ease-out;
 }
 
 /* html5-qrcode varsayilan stillerini koyu arka plan icin okunur hale getirir */

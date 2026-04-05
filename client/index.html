@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="tr">
   <head>
+    <script>
+      try {
+        var t = localStorage.getItem('studysprint_theme')
+        if (t === 'light') document.documentElement.classList.remove('dark')
+        else document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StudySprint</title>

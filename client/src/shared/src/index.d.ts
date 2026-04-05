@@ -24,6 +24,7 @@ export type PublicRoomState = {
     ownerId: string;
     /** Kurucu: tüm çevrimiçi katılımcılar hazırsa true */
     canOwnerStart: boolean;
+    countdownGen: number;
     countdownStep: number | null;
     sprintEndsAt: number | null;
     debriefDeadlineAt: number | null;

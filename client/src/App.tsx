@@ -1,5 +1,6 @@
 import { Navigate, createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
+import { RequireAuth } from './components/RequireAuth'
 import { RootLayout } from './components/RootLayout'
 import { AuthPage } from './pages/AuthPage'
 import { HomePage } from './pages/HomePage'
@@ -18,7 +19,14 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'join', element: <JoinPage /> },
-      { path: 'stats', element: <StatsPage /> },
+      {
+        path: 'stats',
+        element: (
+          <RequireAuth>
+            <StatsPage />
+          </RequireAuth>
+        ),
+      },
       { path: 'auth', element: <AuthPage /> },
       { path: 'room/:slug', element: <RoomPage /> },
       { path: '*', element: <Navigate to="/" replace /> },

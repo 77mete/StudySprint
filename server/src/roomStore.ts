@@ -121,6 +121,7 @@ const serialize = (room: InternalRoom): PublicRoomState => ({
   hasPassword: room.passwordHash !== null,
   ownerId: room.ownerId,
   canOwnerStart: computeCanOwnerStart(room),
+  countdownGen: room.countdownGen,
   countdownStep: room.countdownStep,
   sprintEndsAt: room.sprintEndsAt,
   debriefDeadlineAt: room.debriefDeadlineAt,

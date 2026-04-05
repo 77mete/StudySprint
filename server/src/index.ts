@@ -14,21 +14,27 @@ import { RoomStore } from './roomStore.js'
 
 const PORT = Number(process.env.PORT) || 3001
 
+const DEFAULT_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'https://study-sprint-black.vercel.app',
+]
+
 const parseClientOrigins = (): string[] => {
-  const raw = process.env.CLIENT_ORIGIN || 'http://localhost:5173'
-  return raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
+  const raw = process.env.CLIENT_ORIGIN
+  if (raw && raw.trim()) {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }
+  return DEFAULT_ORIGINS
 }
 
 const CLIENT_ORIGINS = parseClientOrigins()
-const corsOrigin =
-  CLIENT_ORIGINS.length === 0
-    ? 'http://localhost:5173'
-    : CLIENT_ORIGINS.length === 1
-      ? CLIENT_ORIGINS[0]
-      : CLIENT_ORIGINS
+const corsOrigin: string | string[] =
+  CLIENT_ORIGINS.length === 0 ? DEFAULT_ORIGINS[0]! : CLIENT_ORIGINS
 
 const app = express()
 app.set('trust proxy', 1)

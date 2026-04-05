@@ -63,6 +63,7 @@ export const RoomPage = () => {
 
   const prevPhase = useRef<string | null>(null)
   const prevCountdownStep = useRef<number | null>(null)
+  const countdownSoundGen = useRef<number | null>(null)
   /** Geri tuşu için tek seferlik history katmanı (useBlocker mobilde güvenilir olmayabiliyor) */
   const backGuardPushedRef = useRef(false)
   const awayMsRef = useRef(0)
@@ -328,8 +329,16 @@ export const RoomPage = () => {
       return
     }
     const step = room.countdownStep
-    if (step >= 1 && step <= 3 && prevCountdownStep.current !== step) {
-      playCountdownBurst()
+    const gen = room.countdownGen
+    if (step === 3) {
+      if (typeof gen === 'number') {
+        if (countdownSoundGen.current !== gen) {
+          countdownSoundGen.current = gen
+          playCountdownBurst()
+        }
+      } else if (prevCountdownStep.current === null) {
+        playCountdownBurst()
+      }
     }
     prevCountdownStep.current = step
   }, [room])
@@ -518,14 +527,14 @@ export const RoomPage = () => {
   if (!joined) {
     if (peekLoading) {
       return (
-        <div className="flex min-h-full items-center justify-center bg-slate-950 text-slate-400">
+        <div className="flex min-h-full items-center justify-center bg-slate-100 text-slate-500 dark:bg-slate-950 dark:text-slate-400">
           Oda kontrol ediliyor…
         </div>
       )
     }
     if (peekError || !peek) {
       return (
-        <div className="min-h-full bg-slate-950 px-4 py-16 text-center">
+        <div className="min-h-full bg-slate-100 px-4 py-16 text-center dark:bg-slate-950">
           <p className="text-lg text-amber-200">Bu kodla bir oda bulunamadı.</p>
           <Link to="/" className="mt-4 inline-block text-brand-400">
             Ana sayfaya dön
@@ -535,7 +544,7 @@ export const RoomPage = () => {
     }
 
     return (
-      <div className="min-h-full bg-slate-950 px-4 py-12">
+      <div className="min-h-full bg-slate-100 px-4 py-12 dark:bg-slate-950">
         <div className="mx-auto max-w-md space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <h1 className="text-xl font-semibold text-white">Odaya katıl</h1>
           <p className="text-sm text-slate-400">
@@ -594,7 +603,7 @@ export const RoomPage = () => {
 
   if (!room) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-slate-950 text-slate-400">
+      <div className="flex min-h-full items-center justify-center bg-slate-100 text-slate-500 dark:bg-slate-950 dark:text-slate-400">
         Oda yükleniyor…
       </div>
     )
@@ -608,7 +617,7 @@ export const RoomPage = () => {
     room.participants.some((p) => !p.debriefSubmitted)
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-3 py-8 sm:px-6">
+    <div className="min-h-full bg-gradient-to-b from-slate-100 via-slate-50 to-slate-100 px-3 py-8 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 sm:px-6">
       {banner && (
         <div
           className="mx-auto mb-4 max-w-3xl rounded-lg border border-slate-700 bg-slate-900/80 px-4 py-2 text-center text-sm text-slate-200"
