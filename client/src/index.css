@@ -112,6 +112,17 @@ html.dark {
     @apply bg-slate-100 dark:bg-slate-800/80;
   }
 
+  /** Oda başlığı: küçük ikincil butonlar — hafif soldurma + tema düğmesi ile uyumlu hover */
+  .ss-btn-ghost-fade {
+    @apply opacity-[0.88] transition-[opacity,background-color,border-color,color] duration-200 ease-out;
+  }
+  .ss-btn-ghost-fade:hover {
+    @apply opacity-100 bg-slate-100/95 text-slate-800 border-slate-300/90;
+  }
+  .dark .ss-btn-ghost-fade:hover {
+    @apply bg-slate-800/85 text-slate-200 border-slate-600;
+  }
+
   .ss-checkbox {
     @apply size-4 shrink-0 cursor-pointer rounded border-slate-400 text-brand-600 transition-[transform,box-shadow,border-color] duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-brand-500/40 dark:border-slate-600;
     accent-color: #16a34a;

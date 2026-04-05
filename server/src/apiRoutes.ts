@@ -1,5 +1,6 @@
 import type { Express, Request } from 'express'
-import { getPrisma } from './db.js'
+import { Prisma } from '@prisma/client'
+import { checkDatabase, getPrisma } from './db.js'
 import {
   generateTempPassword,
   hashPassword,
@@ -28,7 +29,48 @@ const parseBearer = (req: Request) => {
   return token.length > 0 ? token : null
 }
 
+/** Prisma hatalarını güvenli kullanıcı mesajına çevir (log’da tam detay kalır). */
+const mapPrismaAuthError = (
+  e: unknown,
+): { status: number; error: string } | null => {
+  if (e instanceof Prisma.PrismaClientKnownRequestError) {
+    if (e.code === 'P2002') {
+      return {
+        status: 409,
+        error: 'Bu e-posta veya cihaz kimliği zaten kayıtlı.',
+      }
+    }
+    if (e.code === 'P2021') {
+      return {
+        status: 503,
+        error:
+          'Veritabanı tabloları bulunamadı. Sunucu başlatılırken migration uygulanmalı (prisma migrate deploy).',
+      }
+    }
+    if (e.code === 'P1001' || e.code === 'P1000') {
+      return {
+        status: 503,
+        error:
+          'Veritabanı sunucusuna ulaşılamıyor. DATABASE_URL, ağ erişimi ve Supabase’te projenin duraklatılmadığını kontrol edin.',
+      }
+    }
+  }
+  if (e instanceof Prisma.PrismaClientInitializationError) {
+    return {
+      status: 503,
+      error:
+        'Veritabanı bağlantısı kurulamadı. Supabase pooler (6543) kullanıyorsanız URL’de pgbouncer=true ve sslmode=require olduğundan emin olun; Railway’de DATABASE_URL’i doğrulayın.',
+    }
+  }
+  return null
+}
+
 export const registerApiRoutes = (app: Express) => {
+  app.get('/api/health', async (_req, res) => {
+    const dbOk = await checkDatabase()
+    res.status(dbOk ? 200 : 503).json({ ok: dbOk, db: dbOk })
+  })
+
   app.post('/api/auth/register', async (req, res) => {
     try {
       const email = String(req.body?.email ?? '')
@@ -96,17 +138,12 @@ export const registerApiRoutes = (app: Express) => {
       })
     } catch (e) {
       console.error('[auth/register]', e)
-      let error = 'Kayıt başarısız.'
-      const ctor = e instanceof Error ? e.constructor.name : ''
-      const code =
-        e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : ''
-      if (code === 'P2002') {
-        error = 'Bu e-posta veya cihaz kimliği zaten kayıtlı.'
-      } else if (ctor === 'PrismaClientInitializationError' || code === 'P1001') {
-        error =
-          'Veritabanına bağlanılamıyor. Railway’de DATABASE_URL (Supabase: sslmode=require) ve `npx prisma migrate deploy` adımlarını kontrol edin.'
+      const mapped = mapPrismaAuthError(e)
+      if (mapped) {
+        res.status(mapped.status).json({ ok: false, error: mapped.error })
+        return
       }
-      res.status(500).json({ ok: false, error })
+      res.status(500).json({ ok: false, error: 'Kayıt başarısız.' })
     }
   })
 
@@ -273,7 +310,12 @@ export const registerApiRoutes = (app: Express) => {
         },
       })
     } catch (e) {
-      console.error(e)
+      console.error('[auth/login]', e)
+      const mapped = mapPrismaAuthError(e)
+      if (mapped) {
+        res.status(mapped.status).json({ ok: false, error: mapped.error })
+        return
+      }
       res.status(500).json({ ok: false, error: 'Giriş başarısız.' })
     }
   })

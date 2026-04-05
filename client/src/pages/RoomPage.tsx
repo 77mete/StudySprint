@@ -688,7 +688,7 @@ export const RoomPage = () => {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="ss-btn-ghost rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300"
+              className="ss-btn-ghost ss-btn-ghost-fade rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300"
               onClick={() => {
                 void navigator.clipboard.writeText(inviteUrl)
                 setBanner('Davet linki kopyalandı.')
@@ -699,7 +699,7 @@ export const RoomPage = () => {
             <Link
               to="/"
               data-no-leave-guard
-              className="ss-btn-ghost rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300"
+              className="ss-btn-ghost ss-btn-ghost-fade rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300"
               onClick={(e) => {
                 e.preventDefault()
                 handleLeaveRoom()
