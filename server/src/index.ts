@@ -1,5 +1,5 @@
 import './env.js'
-import cors, { type CorsOptions } from 'cors'
+import type { IncomingMessage } from 'node:http'
 import express from 'express'
 import { existsSync } from 'node:fs'
 import { promises as fs } from 'node:fs'
@@ -60,16 +60,31 @@ const corsAllowedHeaders = [
   'Cache-Control',
 ]
 
-const corsDynamicOptions: CorsOptions = {
-  origin: (origin, cb) => {
-    cb(null, isClientOriginAllowed(origin))
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: corsAllowedHeaders,
-  optionsSuccessStatus: 204,
-  maxAge: 86_400,
-  preflightContinue: false,
+const applyExpressCors = (req: express.Request, res: express.Response): boolean => {
+  const origin = req.get('Origin')
+  if (origin && isClientOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.vary('Origin')
+  }
+  if (req.method === 'OPTIONS') {
+    if (!origin || !isClientOriginAllowed(origin)) {
+      res.status(403).end()
+      return true
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', corsAllowedHeaders.join(', '))
+    res.setHeader('Access-Control-Max-Age', '86400')
+    res.status(204).end()
+    return true
+  }
+  return false
+}
+
+const allowSocketHandshake = (req: IncomingMessage): boolean => {
+  const origin = req.headers.origin
+  if (typeof origin !== 'string' || origin === '') return true
+  return isClientOriginAllowed(origin)
 }
 
 const app = express()
@@ -82,15 +97,20 @@ const io = new Server(httpServer, {
     origin: (origin, cb) => {
       cb(null, isClientOriginAllowed(origin))
     },
-    /** Polling transport preflight + POST için OPTIONS şart (yalnızca GET/POST yetmez). */
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: corsAllowedHeaders,
     credentials: true,
   },
+  allowRequest: (req, callback) => {
+    callback(null, allowSocketHandshake(req))
+  },
 })
 
-/** CORS önce: OPTIONS + credentialed cross-origin için doğru sıra. */
-app.use(cors(corsDynamicOptions))
+/** Manuel CORS: preflight ve yanıtlarda tek tutarlı başlıklar (cors paketinden bağımsız). */
+app.use((req, res, next) => {
+  if (applyExpressCors(req, res)) return
+  next()
+})
 app.use(express.json({ limit: '32kb' }))
 
 const apiLimiter = rateLimit({

@@ -2,13 +2,15 @@ import { getAuthToken } from './authToken'
 
 /**
  * Üretimde tam kök URL (örn. https://api-xxx.up.railway.app).
- * Boşsa aynı origin: Vite dev proxy veya barındırıcıdaki /api yönlendirmesi.
+ * Boş / RELATIVE: aynı origin — Vite dev proxy veya Vercel `vercel.json` rewrite ile backend.
+ * Vercel’de CORS sorununu önlemek için genelde boş bırakıp rewrite kullanın.
  */
 export const getBackendOrigin = (): string => {
   const raw = import.meta.env.VITE_BACKEND_URL
   if (typeof raw !== 'string') return ''
   let s = raw.trim().replace(/\/$/, '')
   if (!s || s === 'undefined' || s === 'null') return ''
+  if (/^relative$/i.test(s) || s === '/') return ''
 
   if (!/^https?:\/\//i.test(s)) {
     s = `https://${s}`
