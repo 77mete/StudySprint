@@ -14,7 +14,12 @@ import { RoomQr } from '../components/RoomQr'
 import { getOrCreateClientId } from '../lib/clientId'
 import type { FocusMode } from '../lib/focusAudio'
 import { setFocusMode } from '../lib/focusAudio'
-import { playCountdownBurst, primeCountdownAudio } from '../lib/countdownAudio'
+import {
+  playCountdownFinalTick,
+  playCountdownGo,
+  playCountdownStrongTick,
+  primeCountdownAudio,
+} from '../lib/countdownAudio'
 import { parseRoomSlugFromText } from '../lib/parseRoomUrl'
 import { playSessionEndChime } from '../lib/sound'
 import { apiUrl } from '../lib/apiBase'
@@ -62,8 +67,6 @@ export const RoomPage = () => {
   )
 
   const prevPhase = useRef<string | null>(null)
-  const prevCountdownStep = useRef<number | null>(null)
-  const countdownSoundGen = useRef<number | null>(null)
   /** Geri tuşu için tek seferlik history katmanı (useBlocker mobilde güvenilir olmayabiliyor) */
   const backGuardPushedRef = useRef(false)
   const awayMsRef = useRef(0)
@@ -304,6 +307,9 @@ export const RoomPage = () => {
 
   useEffect(() => {
     if (!room) return
+    if (prevPhase.current === 'countdown' && room.phase === 'sprint') {
+      playCountdownGo()
+    }
     if (prevPhase.current === 'sprint' && room.phase === 'debrief') {
       playSessionEndChime()
       void setFocusMode('off')
@@ -324,23 +330,14 @@ export const RoomPage = () => {
   }, [room?.phase])
 
   useEffect(() => {
-    if (!room || room.phase !== 'countdown' || room.countdownStep == null) {
-      prevCountdownStep.current = null
-      return
-    }
+    if (!room || room.phase !== 'countdown' || room.countdownStep == null) return
     const step = room.countdownStep
     const gen = room.countdownGen
-    if (step === 3) {
-      if (typeof gen === 'number') {
-        if (countdownSoundGen.current !== gen) {
-          countdownSoundGen.current = gen
-          playCountdownBurst()
-        }
-      } else if (prevCountdownStep.current === null) {
-        playCountdownBurst()
-      }
+    if (step === 3 || step === 2) {
+      playCountdownStrongTick(gen, step)
+    } else if (step === 1) {
+      playCountdownFinalTick(gen)
     }
-    prevCountdownStep.current = step
   }, [room])
 
   useEffect(() => {

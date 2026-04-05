@@ -33,8 +33,20 @@ const parseClientOrigins = (): string[] => {
 }
 
 const CLIENT_ORIGINS = parseClientOrigins()
-const corsOrigin: string | string[] =
-  CLIENT_ORIGINS.length === 0 ? DEFAULT_ORIGINS[0]! : CLIENT_ORIGINS
+
+/** Tarayıcıdan gelen Origin başlığını kabul et (CORS + Socket.IO). */
+const isClientOriginAllowed = (origin: string | undefined): boolean => {
+  if (origin === undefined || origin === '') return true
+  if (CLIENT_ORIGINS.includes(origin)) return true
+  try {
+    const u = new URL(origin)
+    if (u.protocol === 'https:' && u.hostname.endsWith('.vercel.app')) return true
+    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') return true
+  } catch {
+    return false
+  }
+  return false
+}
 
 const app = express()
 app.set('trust proxy', 1)
@@ -43,7 +55,9 @@ const httpServer = createServer(app)
 
 const io = new Server(httpServer, {
   cors: {
-    origin: corsOrigin,
+    origin: (origin, cb) => {
+      cb(null, isClientOriginAllowed(origin))
+    },
     methods: ['GET', 'POST'],
   },
 })
@@ -51,7 +65,9 @@ const io = new Server(httpServer, {
 app.use(express.json({ limit: '32kb' }))
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: (origin, cb) => {
+      cb(null, isClientOriginAllowed(origin))
+    },
   }),
 )
 

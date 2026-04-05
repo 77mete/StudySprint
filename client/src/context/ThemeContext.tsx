@@ -32,12 +32,23 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const root = document.documentElement
     if (theme === 'dark') root.classList.add('dark')
     else root.classList.remove('dark')
+    root.style.colorScheme = theme === 'dark' ? 'dark' : 'light'
     try {
       localStorage.setItem(STORAGE, theme)
     } catch {
       // yoksay
     }
   }, [theme])
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE || e.storageArea !== localStorage) return
+      const v = e.newValue
+      if (v === 'light' || v === 'dark') setThemeState(v)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   const setTheme = useCallback((t: Theme) => setThemeState(t), [])
   const toggleTheme = useCallback(() => {

@@ -1,26 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { apiUrl } from '../lib/apiBase'
+import { apiUrl, getBackendOrigin } from '../lib/apiBase'
 import { getAuthToken, setAuthToken } from '../lib/authToken'
 import { getOrCreateClientId } from '../lib/clientId'
 
 type Mode = 'login' | 'register' | 'forgot' | 'change'
-
-const parseApiError = async (r: Response): Promise<string> => {
-  const ct = r.headers.get('content-type') ?? ''
-  try {
-    if (ct.includes('application/json')) {
-      const j = (await r.json()) as { error?: string; message?: string }
-      return j.error ?? j.message ?? `Sunucu yanıtı: ${r.status}`
-    }
-    const t = await r.text()
-    return t.slice(0, 200) || `İstek başarısız (${r.status})`
-  } catch {
-    return r.status === 0
-      ? 'Ağ hatası — bağlantınızı veya sunucu adresini kontrol edin.'
-      : `İstek başarısız (${r.status})`
-  }
-}
 
 const passwordHints = (pwd: string) => ({
   len: pwd.length >= 8,
@@ -46,6 +30,13 @@ export const AuthPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showNewPassword2, setShowNewPassword2] = useState(false)
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  /** Giriş ↔ Kayıt geçiş animasyonu; ilk yüklemede sınıf yok */
+  const [authAnimTick, setAuthAnimTick] = useState(0)
+  const [authAnimDir, setAuthAnimDir] = useState<'lr' | 'rl'>('lr')
 
   const regHints = useMemo(() => passwordHints(password), [password])
   const newHints = useMemo(() => passwordHints(newPassword), [newPassword])
@@ -68,15 +59,30 @@ export const AuthPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const d = (await r.json().catch(() => ({}))) as {
+      const rawText = await r.text()
+      let d = {} as {
         ok?: boolean
         error?: string
+        message?: string
         token?: string
         user?: { mustChangePassword?: boolean }
         devTempPassword?: string
       }
+      try {
+        d = rawText ? (JSON.parse(rawText) as typeof d) : {}
+      } catch {
+        d = {}
+      }
       if (!r.ok || !d.ok) {
-        setError(d.error ?? (await parseApiError(r)))
+        const hint =
+          typeof d.error === 'string'
+            ? d.error
+            : typeof d.message === 'string'
+              ? d.message
+              : rawText.trimStart().startsWith('<')
+                ? `API yanıtı HTML döndü (${r.status}). Üretimde /api isteklerinin arka uca yönlendirildiğinden veya VITE_BACKEND_URL’in doğru HTTPS adresi olduğundan emin olun.`
+                : rawText.slice(0, 200) || `İstek başarısız (${r.status})`
+        setError(hint)
         return
       }
       if (mode === 'register' && d.token) {
@@ -100,11 +106,20 @@ export const AuthPage = () => {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      setError(
-        msg.includes('Failed to fetch') || msg.includes('NetworkError')
-          ? 'Sunucuya ulaşılamıyor. İnternet bağlantınızı ve API adresini (HTTPS) kontrol edin.'
-          : 'Beklenmeyen bir hata oluştu.',
-      )
+      const net =
+        msg.includes('Failed to fetch') ||
+        msg.includes('NetworkError') ||
+        msg.toLowerCase().includes('load failed')
+      if (net) {
+        const origin = getBackendOrigin()
+        setError(
+          origin
+            ? `Sunucuya ulaşılamıyor (${origin}). HTTPS adresinin doğru olduğundan ve sunucunun CORS izni verdiğinden emin olun.`
+            : 'Sunucuya ulaşılamıyor. İnternet bağlantınızı kontrol edin; geliştirmede API sunucusunun (ör. localhost:3001) çalıştığından emin olun. Üretimde VITE_BACKEND_URL için tam HTTPS kökü veya boş (aynı site /api) kullanın.',
+        )
+      } else {
+        setError('Beklenmeyen bir hata oluştu.')
+      }
     } finally {
       setBusy(false)
     }
@@ -124,14 +139,25 @@ export const AuthPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       })
-      const d = (await r.json().catch(() => ({}))) as {
+      const rawText = await r.text()
+      let d = {} as {
         ok?: boolean
         error?: string
         message?: string
         devTempPassword?: string
       }
+      try {
+        d = rawText ? (JSON.parse(rawText) as typeof d) : {}
+      } catch {
+        d = {}
+      }
       if (!r.ok || !d.ok) {
-        setError(d.error ?? (await parseApiError(r)))
+        setError(
+          d.error ||
+            d.message ||
+            rawText.slice(0, 200) ||
+            `İstek başarısız (${r.status})`,
+        )
         return
       }
       setInfo(d.message ?? 'İşlem tamamlandı.')
@@ -175,9 +201,20 @@ export const AuthPage = () => {
           newPassword,
         }),
       })
-      const d = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      const rawText = await r.text()
+      let d = {} as { ok?: boolean; error?: string; message?: string }
+      try {
+        d = rawText ? (JSON.parse(rawText) as typeof d) : {}
+      } catch {
+        d = {}
+      }
       if (!r.ok || !d.ok) {
-        setError(d.error ?? (await parseApiError(r)))
+        setError(
+          d.error ||
+            d.message ||
+            rawText.slice(0, 200) ||
+            `İstek başarısız (${r.status})`,
+        )
         return
       }
       setInfo('Şifreniz güncellendi.')
@@ -194,6 +231,9 @@ export const AuthPage = () => {
 
   const panelClass =
     'rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-900/90'
+
+  const authFormAnimClass =
+    authAnimTick === 0 ? '' : authAnimDir === 'lr' ? 'ss-auth-enter-lr' : 'ss-auth-enter-rl'
 
   return (
     <div className="min-h-full bg-gradient-to-b from-slate-100 to-slate-50 px-4 py-10 dark:from-slate-950 dark:to-slate-900">
@@ -219,17 +259,21 @@ export const AuthPage = () => {
         </div>
 
         {mode !== 'change' && mode !== 'forgot' && (
-          <div className="flex rounded-xl border border-slate-200 bg-white/90 p-1 dark:border-slate-800 dark:bg-slate-900/40">
+          <div className="flex rounded-xl border border-slate-200 bg-white/90 p-1 shadow-sm transition-shadow duration-300 dark:border-slate-800 dark:bg-slate-900/40">
             <button
               type="button"
               onClick={() => {
+                if (mode !== 'login') {
+                  setAuthAnimDir('rl')
+                  setAuthAnimTick((t) => t + 1)
+                }
                 setMode('login')
                 setError(null)
               }}
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
+              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all duration-300 ease-out ${
                 mode === 'login'
-                  ? 'bg-brand-600 text-white shadow'
-                  : 'text-slate-500 dark:text-slate-400'
+                  ? 'scale-[1.02] bg-brand-600 text-white shadow-md'
+                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               Giriş
@@ -237,13 +281,17 @@ export const AuthPage = () => {
             <button
               type="button"
               onClick={() => {
+                if (mode !== 'register') {
+                  setAuthAnimDir('lr')
+                  setAuthAnimTick((t) => t + 1)
+                }
                 setMode('register')
                 setError(null)
               }}
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
+              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all duration-300 ease-out ${
                 mode === 'register'
-                  ? 'bg-brand-600 text-white shadow'
-                  : 'text-slate-500 dark:text-slate-400'
+                  ? 'scale-[1.02] bg-brand-600 text-white shadow-md'
+                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               Kayıt
@@ -255,26 +303,48 @@ export const AuthPage = () => {
           {mode === 'change' ? (
             <div className="space-y-4">
               {info && <p className="text-sm text-brand-700 dark:text-brand-300">{info}</p>}
-              <label className="block text-sm">
+              <div className="block text-sm">
                 <span className="text-slate-600 dark:text-slate-400">Mevcut şifre (geçici)</span>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </label>
-              <label className="block text-sm">
+                <div className="relative mt-1">
+                  <input
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-[5.5rem] text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <label className="absolute right-2 top-1/2 flex -translate-y-1/2 cursor-pointer select-none items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={showCurrentPassword}
+                      onChange={(e) => setShowCurrentPassword(e.target.checked)}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900"
+                    />
+                    Göster
+                  </label>
+                </div>
+              </div>
+              <div className="block text-sm">
                 <span className="text-slate-600 dark:text-slate-400">Yeni şifre</span>
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-              </label>
+                <div className="relative mt-1">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-[5.5rem] text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <label className="absolute right-2 top-1/2 flex -translate-y-1/2 cursor-pointer select-none items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={showNewPassword}
+                      onChange={(e) => setShowNewPassword(e.target.checked)}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900"
+                    />
+                    Göster
+                  </label>
+                </div>
+              </div>
               <ul className="text-xs text-slate-600 dark:text-slate-500">
                 <li className={newHints.len ? 'text-emerald-600 dark:text-emerald-400' : ''}>
                   {newHints.len ? '✓' : '○'} En az 8 karakter
@@ -289,16 +359,27 @@ export const AuthPage = () => {
                   {newHints.special ? '✓' : '○'} En az bir özel karakter
                 </li>
               </ul>
-              <label className="block text-sm">
+              <div className="block text-sm">
                 <span className="text-slate-600 dark:text-slate-400">Yeni şifre (tekrar)</span>
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                  value={newPassword2}
-                  onChange={(e) => setNewPassword2(e.target.value)}
-                />
-              </label>
+                <div className="relative mt-1">
+                  <input
+                    type={showNewPassword2 ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-[5.5rem] text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    value={newPassword2}
+                    onChange={(e) => setNewPassword2(e.target.value)}
+                  />
+                  <label className="absolute right-2 top-1/2 flex -translate-y-1/2 cursor-pointer select-none items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={showNewPassword2}
+                      onChange={(e) => setShowNewPassword2(e.target.checked)}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900"
+                    />
+                    Göster
+                  </label>
+                </div>
+              </div>
               {error && <p className="text-sm text-amber-700 dark:text-amber-300">{error}</p>}
               <button
                 type="button"
@@ -343,7 +424,10 @@ export const AuthPage = () => {
               </button>
             </div>
           ) : (
-            <>
+            <div
+              key={`${mode}-${authAnimTick}`}
+              className={`space-y-4 ${authFormAnimClass}`.trim()}
+            >
               <label className="block text-sm">
                 <span className="text-slate-600 dark:text-slate-400">E-posta</span>
                 <input
@@ -354,16 +438,27 @@ export const AuthPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </label>
-              <label className="block text-sm">
+              <div className="block text-sm">
                 <span className="text-slate-600 dark:text-slate-400">Şifre</span>
-                <input
-                  type="password"
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </label>
+                <div className="relative mt-1">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-[5.5rem] text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <label className="absolute right-2 top-1/2 flex -translate-y-1/2 cursor-pointer select-none items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={showPassword}
+                      onChange={(e) => setShowPassword(e.target.checked)}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-900"
+                    />
+                    Göster
+                  </label>
+                </div>
+              </div>
               {mode === 'register' && (
                 <ul className="text-xs text-slate-600 dark:text-slate-500">
                   <li className={regHints.len ? 'text-emerald-600 dark:text-emerald-400' : ''}>
@@ -397,11 +492,11 @@ export const AuthPage = () => {
                 type="button"
                 onClick={() => void handleSubmit()}
                 disabled={busy || (mode === 'register' && !allRegOk)}
-                className="mt-2 w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="mt-2 w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100"
               >
                 {busy ? '…' : mode === 'login' ? 'Giriş yap' : 'Kayıt ol'}
               </button>
-            </>
+            </div>
           )}
         </div>
 

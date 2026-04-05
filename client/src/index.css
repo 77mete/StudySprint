@@ -12,6 +12,44 @@ body {
   @apply bg-slate-100 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
 }
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+@keyframes ss-auth-enter-lr {
+  from {
+    opacity: 0;
+    transform: translateX(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes ss-auth-enter-rl {
+  from {
+    opacity: 0;
+    transform: translateX(-14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.ss-auth-enter-lr {
+  animation: ss-auth-enter-lr 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ss-auth-enter-rl {
+  animation: ss-auth-enter-rl 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes ss-pop {
   0% {
     transform: scale(0.92);

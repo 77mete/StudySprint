@@ -57,10 +57,10 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
             key={t.id}
             className={`pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-lg backdrop-blur transition-opacity duration-300 dark:shadow-black/40 ${
               t.kind === 'success'
-                ? 'border-emerald-500/40 bg-emerald-950/90 text-emerald-50'
+                ? 'border-emerald-500/50 bg-emerald-50 text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/90 dark:text-emerald-50'
                 : t.kind === 'error'
-                  ? 'border-red-500/40 bg-red-950/90 text-red-50'
-                  : 'border-slate-600 bg-slate-900/95 text-slate-100 dark:bg-slate-900/95'
+                  ? 'border-red-500/50 bg-red-50 text-red-950 dark:border-red-500/40 dark:bg-red-950/90 dark:text-red-50'
+                  : 'border-slate-300 bg-white text-slate-800 dark:border-slate-600 dark:bg-slate-900/95 dark:text-slate-100'
             }`}
           >
             {t.message}
