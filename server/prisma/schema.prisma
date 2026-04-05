@@ -14,7 +14,33 @@ model Room {
   updatedAt DateTime @updatedAt
 }
 
-/// Yerel clientId ile eşleşen profil — streak ve rozetler
+/// E-posta ile kayıtlı hesap
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  xp             Int      @default(0)
+  streakDays     Int      @default(0)
+  lastStreakDate DateTime?
+  badges         String[] @default([])
+  /// Günlük hedef (dakika) — son kaydedilen gün goalDay ile eşleşir
+  dailyMinutesGoal Int?
+  dailyTasksGoal   Int?
+  goalDay          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  bindings       ClientBinding[]
+}
+
+/// Misafir clientId → kayıtlı kullanıcı (çoklu cihaz)
+model ClientBinding {
+  clientId  String @id
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+/// Yerel clientId ile eşleşen profil — misafir veya hesap bağlanmadan önce
 model UserProfile {
   id             String    @id @default(cuid())
   clientId       String    @unique
@@ -22,9 +48,31 @@ model UserProfile {
   streakDays     Int       @default(0)
   lastStreakDate DateTime?
   badges         String[]  @default([])
+  xp             Int       @default(0)
+  dailyMinutesGoal Int?
+  dailyTasksGoal   Int?
+  goalDay          String?
 }
 
-/// Tamamlanan oturum özeti (istatistik ve geçmiş grafikleri için)
+/// Katılımcı başına oturum özeti (istatistik, ısı haritası, verimli saat)
+model SessionParticipantLog {
+  id               String   @id @default(cuid())
+  clientId         String
+  roomSlug         String
+  endedAt          DateTime
+  durationMinutes  Int
+  completedTasks   Int
+  targetTasks      Int
+  targetPercent    Int
+  distractionCount Int
+  /// Sekme dışında / gizli kalınan süre (saniye)
+  awaySeconds      Int      @default(0)
+  isOwner          Boolean
+  /// Kullanıcının yerel saati (0–23) — debrief anında
+  localHour        Int
+}
+
+/// Tamamlanan oturum ham kaydı (eski uyumluluk)
 model SessionLog {
   id              String   @id @default(cuid())
   roomSlug        String

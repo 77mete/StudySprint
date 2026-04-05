@@ -73,6 +73,10 @@ export type DebriefSubmitPayload = {
   completedTasks: number
   /** İşaretliyse, bu kullanıcının sonuçları diğer kullanıcılara gizli gösterilir. */
   hideResults: boolean
+  /** Sekme dışında geçirilen süre (saniye) */
+  awaySeconds?: number
+  /** Debrief anında yerel saat 0–23 */
+  localHour?: number
 }
 
 export type OwnerKickPayload = {

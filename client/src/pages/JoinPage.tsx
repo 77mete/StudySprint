@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { QrScanPanel } from '../components/QrScanPanel'
+import { primeCountdownAudio } from '../lib/countdownAudio'
 import { parseRoomSlugFromText } from '../lib/parseRoomUrl'
 
 export const JoinPage = () => {
@@ -19,6 +20,7 @@ export const JoinPage = () => {
       }
       setBusy(true)
       setError(null)
+      primeCountdownAudio()
       navigate(`/room/${slug}`)
       setBusy(false)
     },

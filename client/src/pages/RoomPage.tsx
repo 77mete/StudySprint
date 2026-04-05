@@ -14,8 +14,9 @@ import { RoomQr } from '../components/RoomQr'
 import { getOrCreateClientId } from '../lib/clientId'
 import type { FocusMode } from '../lib/focusAudio'
 import { setFocusMode } from '../lib/focusAudio'
+import { playCountdownBurst, primeCountdownAudio } from '../lib/countdownAudio'
 import { parseRoomSlugFromText } from '../lib/parseRoomUrl'
-import { playCountdownTick, playSessionEndChime } from '../lib/sound'
+import { playSessionEndChime } from '../lib/sound'
 import { apiUrl } from '../lib/apiBase'
 import { getSocket } from '../lib/socket'
 
@@ -56,12 +57,16 @@ export const RoomPage = () => {
   const [debriefInput, setDebriefInput] = useState('')
   const [debriefHideResults, setDebriefHideResults] = useState(false)
   const [focusMode, setFocusModeState] = useState<FocusMode>('off')
-  const [profile, setProfile] = useState<{ streak: number; badges: string[] } | null>(null)
+  const [profile, setProfile] = useState<{ streak: number; badges: string[]; xp: number } | null>(
+    null,
+  )
 
   const prevPhase = useRef<string | null>(null)
   const prevCountdownStep = useRef<number | null>(null)
   /** Geri tuşu için tek seferlik history katmanı (useBlocker mobilde güvenilir olmayabiliyor) */
   const backGuardPushedRef = useRef(false)
+  const awayMsRef = useRef(0)
+  const hiddenAtRef = useRef<number | null>(null)
 
   const inActiveSession = Boolean(
     room &&
@@ -207,8 +212,9 @@ export const RoomPage = () => {
   useEffect(() => {
     void fetch(apiUrl(`/api/profile/${clientId}`))
       .then((r) => r.json())
-      .then((d: { ok?: boolean; streakDays?: number; badges?: string[] }) => {
-        if (d.ok) setProfile({ streak: d.streakDays ?? 0, badges: d.badges ?? [] })
+      .then((d: { ok?: boolean; streakDays?: number; badges?: string[]; xp?: number }) => {
+        if (d.ok)
+          setProfile({ streak: d.streakDays ?? 0, badges: d.badges ?? [], xp: d.xp ?? 0 })
       })
       .catch(() => {})
   }, [clientId])
@@ -323,7 +329,7 @@ export const RoomPage = () => {
     }
     const step = room.countdownStep
     if (step >= 1 && step <= 3 && prevCountdownStep.current !== step) {
-      playCountdownTick()
+      playCountdownBurst()
     }
     prevCountdownStep.current = step
   }, [room])
@@ -331,6 +337,27 @@ export const RoomPage = () => {
   useEffect(() => {
     if (room?.phase === 'debrief') setDebriefHideResults(false)
   }, [room?.phase])
+
+  useEffect(() => {
+    if (room?.phase === 'sprint') {
+      awayMsRef.current = 0
+      hiddenAtRef.current = null
+    }
+  }, [room?.phase, room?.slug])
+
+  useEffect(() => {
+    if (!room || room.phase !== 'sprint') return
+    const onVis = () => {
+      if (document.hidden) {
+        hiddenAtRef.current = Date.now()
+      } else if (hiddenAtRef.current != null) {
+        awayMsRef.current += Date.now() - hiddenAtRef.current
+        hiddenAtRef.current = null
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [room])
 
   useEffect(() => {
     if (!room || room.phase !== 'sprint' || room.sprintEndsAt === null) {
@@ -386,6 +413,7 @@ export const RoomPage = () => {
       setJoinError('Görünen ad gerekli veya anonim katılmayı seçin.')
       return
     }
+    primeCountdownAudio()
     setJoinError(null)
     const socket = getSocket()
     socket.emit(
@@ -437,14 +465,25 @@ export const RoomPage = () => {
 
   const inviteUrl = useMemo(() => `${window.location.origin}/room/${slug}`, [slug])
 
-  const chartData = useMemo(() => {
+  const sortedLeaderboard = useMemo(() => {
     if (!results) return []
-    return results.highlights.map((h) => ({
+    const copy = [...results.highlights]
+    copy.sort((a, b) => {
+      if (a.isHidden !== b.isHidden) return a.isHidden ? 1 : -1
+      if (b.completedTasks !== a.completedTasks) return b.completedTasks - a.completedTasks
+      return b.targetPercent - a.targetPercent
+    })
+    return copy
+  }, [results])
+
+  const chartData = useMemo(() => {
+    if (!sortedLeaderboard.length) return []
+    return sortedLeaderboard.map((h) => ({
       name: h.displayLabel.slice(0, 12),
       tamamlanan: h.isHidden ? 0 : h.completedTasks,
       hedefYuzde: h.isHidden ? 0 : h.targetPercent,
     }))
-  }, [results])
+  }, [sortedLeaderboard])
 
   const handleFocusChange = async (mode: FocusMode) => {
     setFocusModeState(mode)
@@ -593,7 +632,7 @@ export const RoomPage = () => {
               </p>
               {profile && (
                 <p className="mt-1 text-xs text-slate-500">
-                  Seri: {profile.streak} gün
+                  XP: {profile.xp} · Seri: {profile.streak} gün
                   {profile.badges.length > 0 && (
                     <span className="ml-2 text-brand-300">Rozetler: {profile.badges.join(', ')}</span>
                   )}
@@ -696,11 +735,17 @@ export const RoomPage = () => {
                   className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
                   onClick={() => {
                     const n = Number(debriefInput)
+                    if (hiddenAtRef.current != null) {
+                      awayMsRef.current += Date.now() - hiddenAtRef.current
+                      hiddenAtRef.current = null
+                    }
                     getSocket().emit('debrief:submit', {
                       slug,
                       clientId,
                       completedTasks: Number.isFinite(n) ? n : 0,
                       hideResults: debriefHideResults,
+                      awaySeconds: Math.round(awayMsRef.current / 1000),
+                      localHour: new Date().getHours(),
                     })
                   }}
                 >
@@ -722,7 +767,7 @@ export const RoomPage = () => {
 
         {room.phase === 'results' && results && (
           <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-            <h2 className="text-xl font-semibold text-white">Sonuçlar</h2>
+            <h2 className="text-xl font-semibold text-white">Liderlik tablosu</h2>
             <p className="text-sm text-slate-400">
               Grup ortalaması: <strong className="text-white">{results.averageCompleted}</strong> ·
               Hedef: {results.targetTasks}
@@ -746,15 +791,19 @@ export const RoomPage = () => {
               </ResponsiveContainer>
             </div>
             <ul className="space-y-2">
-              {results.highlights.map((h) => (
+              {sortedLeaderboard.map((h, idx) => (
                 <li
                   key={h.participantId}
                   className="flex items-center justify-between rounded-lg border border-slate-800 px-3 py-2 text-sm"
                 >
                   <span className="text-slate-200">
+                    <span className="mr-2 font-mono text-xs text-slate-500">{idx + 1}.</span>
                     {h.displayLabel}
                     {h.isTop && (
                       <span className="ml-2 text-xs text-amber-300">En verimli</span>
+                    )}
+                    {h.isHidden && (
+                      <span className="ml-2 text-xs text-slate-500">(gizli)</span>
                     )}
                   </span>
                   <span className="tabular-nums text-slate-400">

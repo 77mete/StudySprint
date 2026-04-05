@@ -8,7 +8,8 @@ import rateLimit from 'express-rate-limit'
 import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { Server } from 'socket.io'
-import { checkDatabase, getPrisma } from './db.js'
+import { checkDatabase } from './db.js'
+import { registerApiRoutes } from './apiRoutes.js'
 import { RoomStore } from './roomStore.js'
 
 const PORT = Number(process.env.PORT) || 3001
@@ -56,6 +57,7 @@ const apiLimiter = rateLimit({
 })
 
 app.use('/api', apiLimiter)
+registerApiRoutes(app)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const serverMusicDir = path.resolve(__dirname, '../music')
@@ -87,23 +89,6 @@ app.get('/api/health', async (_req, res) => {
     uptimeMs: Date.now() - startedAt,
     serverTime: new Date().toISOString(),
   })
-})
-
-app.get('/api/profile/:clientId', async (req, res) => {
-  try {
-    const prisma = getPrisma()
-    const row = await prisma.userProfile.findUnique({
-      where: { clientId: req.params.clientId },
-    })
-    if (!row) {
-      res.json({ ok: true, streakDays: 0, badges: [] as string[] })
-      return
-    }
-    const badges = row.badges ?? []
-    res.json({ ok: true, streakDays: row.streakDays, badges })
-  } catch {
-    res.json({ ok: false, streakDays: 0, badges: [] as string[] })
-  }
 })
 
 const store = new RoomStore()
@@ -199,8 +184,23 @@ io.on('connection', (socket) => {
 
   socket.on(
     'debrief:submit',
-    (payload: { slug: string; clientId: string; completedTasks: number; hideResults: boolean }) => {
-      store.submitDebrief(io, payload.slug, payload.clientId, payload.completedTasks, payload.hideResults)
+    (payload: {
+      slug: string
+      clientId: string
+      completedTasks: number
+      hideResults: boolean
+      awaySeconds?: number
+      localHour?: number
+    }) => {
+      store.submitDebrief(
+        io,
+        payload.slug,
+        payload.clientId,
+        payload.completedTasks,
+        payload.hideResults,
+        payload.awaySeconds,
+        payload.localHour,
+      )
     },
   )
 

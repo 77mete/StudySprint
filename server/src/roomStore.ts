@@ -45,6 +45,10 @@ type InternalParticipant = {
   completedTasks: number | null
   /** Kullanıcı results ekranında bu kişinin detaylarının gizlenmesini istiyor mu? */
   hideResults: boolean
+  /** Sekme dışı süre (sn) — debrief ile gelir */
+  awaySeconds?: number
+  /** Debrief anında yerel saat 0–23 */
+  localHour?: number
 }
 
 type InternalRoom = {
@@ -265,7 +269,6 @@ export class RoomStore {
     room.sprintEndsAt = null
 
     const internalParticipants = [...room.participants.values()]
-    const participants = internalParticipants.map(toPublicParticipant)
 
     const nums = internalParticipants
       .map((p) => (p.completedTasks !== null ? Number(p.completedTasks) : 0))
@@ -329,7 +332,12 @@ export class RoomStore {
       roomSlug: room.slug,
       durationMinutes: room.durationMinutes,
       targetTasks: room.targetTasks,
-      participants,
+      ownerId: room.ownerId,
+      participants: internalParticipants.map((ip) => ({
+        ...toPublicParticipant(ip),
+        awaySeconds: ip.awaySeconds ?? 0,
+        localHour: ip.localHour ?? new Date().getHours(),
+      })),
       highlights: actualHighlights.map((h) => ({
         participantId: h.participantId,
         label: h.displayLabel,
@@ -382,6 +390,8 @@ export class RoomStore {
       debriefSubmitted: false,
       completedTasks: null,
       hideResults: false,
+      awaySeconds: 0,
+      localHour: new Date().getHours(),
     }
 
     const room: InternalRoom = {
@@ -515,6 +525,8 @@ export class RoomStore {
         debriefSubmitted: false,
         completedTasks: null,
         hideResults: false,
+        awaySeconds: 0,
+        localHour: new Date().getHours(),
       }
       room.participants.set(p.id, p)
     }
@@ -682,6 +694,8 @@ export class RoomStore {
     clientId: string,
     completedTasks: number,
     hideResults: boolean,
+    awaySeconds?: number,
+    localHour?: number,
   ) {
     const room = this.rooms.get(slug)
     if (!room || room.phase !== 'debrief') return
@@ -691,6 +705,11 @@ export class RoomStore {
     p.completedTasks = n
     p.debriefSubmitted = true
     p.hideResults = Boolean(hideResults)
+    p.awaySeconds = Math.max(0, Math.round(Number(awaySeconds) || 0))
+    p.localHour =
+      typeof localHour === 'number' && localHour >= 0 && localHour <= 23
+        ? localHour
+        : new Date().getHours()
     broadcast(io, room)
 
     const allDone = [...room.participants.values()].every((q) => q.debriefSubmitted)
